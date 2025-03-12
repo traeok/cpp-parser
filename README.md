@@ -1,8 +1,8 @@
-# C++ Lexer
+# pparser
 
-A simple lexical analyzer (lexer) implemented in C++. This project is a port of a Rust lexer to C++, following pre-C++11 standards with limited use of C++11 features (only vector, unordered_map, and map).
+A lexical analyzer (lexer) and parser facility implemented in C++. This project started as a port of a Rust lexer to C++, following pre-C++11 standards with limited use of C++11 features (only vector, unordered_map, and map) to enable compatibility with older compilers.
 
-## Features
+## Lexer Features
 
 - Tokenizes source code into a stream of tokens
 - Supports various token types:
@@ -13,6 +13,19 @@ A simple lexical analyzer (lexer) implemented in C++. This project is a port of 
   - Integer literals (decimal, hexadecimal, binary)
   - String literals
 - Handles comments and whitespace
+- Error reporting with location information
+
+## Parser Features
+
+- Parses tokens into an abstract syntax tree (AST)
+- Supports various node types:
+  - Assignment
+  - Binary operation
+  - Function call
+  - Variable declaration
+  - Integer literal
+  - String literal
+- Handles precedence and associativity
 - Error reporting with location information
 
 ## Building the Project
