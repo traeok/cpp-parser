@@ -1,0 +1,72 @@
+# Build directories
+build/
+bin/
+out/
+Debug/
+Release/
+MinSizeRel/
+RelWithDebInfo/
+target/
+
+# CMake generated files
+CMakeFiles/
+CMakeCache.txt
+cmake_install.cmake
+Makefile
+*.cmake
+!CMakeLists.txt
+
+# Compiled Object files
+*.slo
+*.lo
+*.o
+*.obj
+
+# Precompiled Headers
+*.gch
+*.pch
+
+# Compiled Dynamic libraries
+*.so
+*.dylib
+*.dll
+
+# Compiled Static libraries
+*.lai
+*.la
+*.a
+*.lib
+
+# Executables
+*.exe
+*.out
+*.app
+
+# Visual Studio files
+.vs/
+*.sln
+*.vcxproj
+*.vcxproj.filters
+*.vcxproj.user
+*.suo
+*.user
+*.userosscache
+*.sdf
+*.opensdf
+*.VC.db
+*.VC.opendb
+ipch/
+
+# VS Code files
+.vscode/
+.history/
+
+# Editor backup files
+*~
+*.swp
+*.swo
+*.bak
+
+# OS specific files
+.DS_Store
+Thumbs.db
