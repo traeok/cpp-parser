@@ -1,7 +1,6 @@
 cmake_minimum_required(VERSION 3.5)
 project(lexer-cpp)
 
-
 # Include directories
 include_directories(include)
 
@@ -11,12 +10,10 @@ set(SOURCES
     src/lexer/source.cpp
     src/lexer/error.cpp
     src/lexer/lexer.cpp
-    src/main.cpp
     src/parser/cli_parser.cpp
 )
 
-# Create executable
-add_executable(lexer ${SOURCES})
+add_library(lexer STATIC ${SOURCES})
 
 # Set output directory
 set_target_properties(lexer PROPERTIES
@@ -31,8 +28,3 @@ else()
     # GCC/Clang flags
     set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wall -Wextra -pedantic")
 endif() 
-
-# Add tests
-add_executable(cli_parser_test
-    tests/cli_parser_test.cpp
-)

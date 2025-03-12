@@ -82,7 +82,7 @@ void testCommandWithFlags()
 void testCommandWithEqualsFlags()
 {
     std::cout << "\nTesting command with equals in flags...\n";
-    auto tokens = tokenize("program --config=config.json --count=5");
+    auto tokens = tokenize("program --config=\"config.json\" --count=5");
     auto cmd = parser::CLIParser::parse(tokens);
     assert(cmd->name == "program");
     assert(cmd->flags.size() == 2);
