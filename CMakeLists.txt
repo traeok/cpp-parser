@@ -15,6 +15,8 @@ set(SOURCES
 
 add_library(lexer STATIC ${SOURCES})
 
+add_executable(lexer_demo src/lexer_demo.cpp ${SOURCES})
+
 # Set output directory
 set_target_properties(lexer PROPERTIES
     RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/bin

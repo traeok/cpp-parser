@@ -284,22 +284,24 @@ namespace lexer
         }
 
         // Check for keywords
-        static std::map<std::string, TokenKind> keywords = {
-            {"if", TOK_IF},
-            {"else", TOK_ELSE},
-            {"for", TOK_FOR},
-            {"in", TOK_IN},
-            {"while", TOK_WHILE},
-            {"break", TOK_BREAK},
-            {"return", TOK_RETURN},
-            {"int", TOK_INT},
-            {"bool", TOK_BOOL},
-            {"string", TOK_STRING},
-            {"and", TOK_AND},
-            {"or", TOK_OR},
-            {"not", TOK_NOT},
-            {"true", TOK_TRUE},
-            {"false", TOK_FALSE}};
+        static std::map<std::string, TokenKind> keywords;
+        if (keywords.empty()) {
+            keywords["if"] = TOK_IF;
+            keywords["else"] = TOK_ELSE;
+            keywords["for"] = TOK_FOR;
+            keywords["in"] = TOK_IN;
+            keywords["while"] = TOK_WHILE;
+            keywords["break"] = TOK_BREAK;
+            keywords["return"] = TOK_RETURN;
+            keywords["int"] = TOK_INT;
+            keywords["bool"] = TOK_BOOL;
+            keywords["string"] = TOK_STRING;
+            keywords["and"] = TOK_AND;
+            keywords["or"] = TOK_OR;
+            keywords["not"] = TOK_NOT;
+            keywords["true"] = TOK_TRUE;
+            keywords["false"] = TOK_FALSE;
+        }
 
         auto it = keywords.find(id);
         if (it != keywords.end())

@@ -29,6 +29,7 @@ std::vector<lexer::Token> showTokens(const std::string &code)
     }
 
     std::cout << std::endl;
+    return std::vector<lexer::Token>();
 }
 
 int main(int argc, char *argv[])

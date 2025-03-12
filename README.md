@@ -28,7 +28,7 @@ A lexical analyzer (lexer) and parser facility implemented in C++. This project 
 - Handles precedence and associativity
 - Error reporting with location information
 
-## Building the Project
+## Building the Lexer Demo
 
 ### Prerequisites
 
@@ -38,26 +38,22 @@ A lexical analyzer (lexer) and parser facility implemented in C++. This project 
 ### Build Steps
 
 ```bash
-# Create a build directory
-mkdir build
-cd build
-
 # Generate build files
-cmake ..
+cmake .
 
 # Build the project
 cmake --build .
 
-# Run the lexer
-./bin/lexer
+# Run the lexer demo
+./Debug/lexer_demo
 ```
 
 ## Usage
 
-When you run the lexer, you can type code snippets and see how they are tokenized:
+When you run the lexer demo, you can type code snippets and see how they are tokenized:
 
 ```
->> let x = 42;
+> let x = 42;
 Tokens:
    let
    x
@@ -67,20 +63,6 @@ Tokens:
 ```
 
 Enter an empty line to exit the program.
-
-## Project Structure
-
-- `include/lexer/`: Header files
-  - `token.h`: Token definitions
-  - `source.h`: Source code handling
-  - `error.h`: Error handling
-  - `lexer.h`: Lexical analyzer
-- `src/`: Implementation files
-  - `token.cpp`: Token implementation
-  - `source.cpp`: Source code handling implementation
-  - `error.cpp`: Error handling implementation
-  - `lexer.cpp`: Lexical analyzer implementation
-  - `main.cpp`: Demo application
 
 ## License
 
