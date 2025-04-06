@@ -1,11 +1,7 @@
 #include <iostream>
 #include <string>
 #include <vector>
-#include "lexer/token.h"
-#include "lexer/source.h"
-#include "lexer/lexer.h"
-#include "lexer/error.h"
-#include "parser/cli_parser.h"
+#include "lexer.hpp"
 
 std::vector<lexer::Token> showTokens(const std::string &code)
 {

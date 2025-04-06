@@ -4,21 +4,10 @@ project(lexer-cpp)
 # Include directories
 include_directories(include)
 
-# Source files
-set(SOURCES
-    src/lexer/token.cpp
-    src/lexer/source.cpp
-    src/lexer/error.cpp
-    src/lexer/lexer.cpp
-    src/parser/cli_parser.cpp
-)
-
-add_library(lexer STATIC ${SOURCES})
-
-add_executable(lexer_demo src/lexer_demo.cpp ${SOURCES})
+add_executable(lexer_demo src/lexer_demo.cpp)
 
 # Set output directory
-set_target_properties(lexer PROPERTIES
+set_target_properties(lexer_demo PROPERTIES
     RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/bin
 )
 
