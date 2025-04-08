@@ -5,9 +5,13 @@ project(lexer-cpp)
 include_directories(include)
 
 add_executable(lexer_demo src/lexer_demo.cpp)
+add_executable(pparser_demo src/pparser_demo.cpp)
 
 # Set output directory
 set_target_properties(lexer_demo PROPERTIES
+    RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/bin
+)
+set_target_properties(pparser_demo PROPERTIES
     RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/bin
 )
 
