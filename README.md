@@ -1,6 +1,6 @@
 # pparser
 
-A lexical analyzer (lexer) and parser facility implemented in C++. This project started as a port of a Rust lexer to C++, following pre-C++11 standards with limited use of C++11 features (only vector, unordered_map, and map) to enable compatibility with older compilers.
+A lexical analyzer (lexer) and CLI parser facility implemented in C++. This project started as a port of a Rust lexer to C++, following pre-C++11 standards with limited use of C++11 features (only vector, unordered_map, and map) to enable compatibility with older compilers.
 
 ## Lexer Features
 
@@ -17,25 +17,25 @@ A lexical analyzer (lexer) and parser facility implemented in C++. This project 
 
 ## Parser Features
 
-- Parses tokens into an abstract syntax tree (AST)
-- Supports various node types:
-  - Assignment
-  - Binary operation
-  - Function call
-  - Variable declaration
-  - Integer literal
-  - String literal
+- Structures commands using a tree of nodes
+- Supports various CLI command structures:
+  - optional and required flags
+  - keyword arguments
+  - positional arguments
+  - subcommands
+  - extensive numeric parsing (floating-point numbers, binary, hexadecimal, etc.)
+  - and more!
 - Handles precedence and associativity
 - Error reporting with location information
 
-## Building the Lexer Demo
+## Building the demos
 
 ### Prerequisites
 
 - CMake (version 2.8 or higher)
 - C++ compiler with C++03 support
 
-### Build Steps
+### Build steps
 
 ```bash
 # Generate build files
@@ -46,6 +46,9 @@ cmake --build .
 
 # Run the lexer demo
 ./Debug/lexer_demo
+
+# Run the parser demo
+./Debug/pparser_demo
 ```
 
 ## Usage
@@ -63,6 +66,15 @@ Tokens:
 ```
 
 Enter an empty line to exit the program.
+
+The parser demo is a git-like CLI with support for a couple subcommands and flags for each subcommand. You can type commands like:
+
+```
+> add file1.txt -f
+> commit -m "Initial commit"
+```
+
+The parser parses the input and invokes the command handler for the recognized command. The handlers simply print the provided arguments and inputs to show how the parsed data can be used.
 
 ## License
 
