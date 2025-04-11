@@ -240,6 +240,7 @@ public:
   };
 
   PParserStatus status;     // No default initializer
+  int exitCode;             // Exit code returned by handler or set by parser
   std::string errorMessage; // Error message if status is PARSE_ERROR
   std::string
       commandPath; // Full path of the executed command (e.g., "git remote add")
@@ -249,7 +250,8 @@ public:
   // Vector storing parsed positional argument values in order
   std::vector<ArgValue> positionalValues;
 
-  ParseResult() : status(PPARSER_STATUS_SUCCESS) {}
+  ParseResult()
+      : status(PPARSER_STATUS_SUCCESS), exitCode(0) {} // Default exit code 0
 
   // Check if a keyword arg was provided (doesn't check type)
   bool hasKeywordArg(const std::string &name) const {
@@ -340,7 +342,7 @@ public:
 // Represents a command or subcommand with its arguments
 class Command : public std::enable_shared_from_this<Command> {
 public:
-  typedef void (*CommandHandler)(const ParseResult &result);
+  typedef int (*CommandHandler)(const ParseResult &result);
 
   Command(std::string name, std::string help)
       : name_(name), help_(help), handler_(nullptr) {
@@ -437,12 +439,15 @@ public:
   const std::vector<ArgumentDef> &getPositionalArgs() const {
     return positionalArgs_;
   }
+  CommandHandler getHandler() const { return handler_; }
 
   ParseResult parse(const std::vector<lexer::Token> &tokens,
                     size_t &currentTokenIndex,
                     const std::string &commandPathPrefix) const {
     ParseResult result;
     result.commandPath = commandPathPrefix + name_;
+    // Initialize exit code for potential errors or help requests
+    result.exitCode = 0; // Default to 0 for success before handler runs
 
     std::map<std::string, bool> keywordArgsSeen;
     size_t currentPositionalArgIndex = 0;
@@ -479,12 +484,14 @@ public:
               result.errorMessage += singleFlagChar;
               std::cerr << "Error: " << result.errorMessage << "\n\n";
               generateHelp(std::cerr, commandPathPrefix);
+              result.exitCode = 1;
               return result;
             }
 
             if (matchedArg->isHelpFlag) {
               generateHelp(std::cout, commandPathPrefix);
               result.status = ParseResult::PPARSER_STATUS_HELP_REQUESTED;
+              result.exitCode = 0; // Help request is a successful exit
               return result;
             }
 
@@ -495,6 +502,7 @@ public:
                                     " requires a value and cannot be combined.";
               std::cerr << "Error: " << result.errorMessage << "\n\n";
               generateHelp(std::cerr, commandPathPrefix);
+              result.exitCode = 1;
               return result;
             }
 
@@ -515,6 +523,7 @@ public:
           result.errorMessage += flagNameStr;
           std::cerr << "Error: " << result.errorMessage << "\n\n";
           generateHelp(std::cerr, commandPathPrefix);
+          result.exitCode = 1;
           return result;
         }
 
@@ -522,6 +531,7 @@ public:
         if (matchedArg->isHelpFlag) {
           generateHelp(std::cout, commandPathPrefix);
           result.status = ParseResult::PPARSER_STATUS_HELP_REQUESTED;
+          result.exitCode = 0; // Help request is a successful exit
           return result;
         }
 
@@ -541,6 +551,7 @@ public:
                 "Option " + matchedArg->getDisplayName() + " requires a value.";
             std::cerr << "Error: " << result.errorMessage << "\n\n";
             generateHelp(std::cerr, commandPathPrefix);
+            result.exitCode = 1;
             return result;
           }
 
@@ -552,6 +563,7 @@ public:
                 "Invalid value for option " + matchedArg->getDisplayName();
             std::cerr << "Error: " << result.errorMessage << "\n\n";
             generateHelp(std::cerr, commandPathPrefix);
+            result.exitCode = 1;
             return result;
           }
 
@@ -567,6 +579,7 @@ public:
                   matchedArg->name;
               std::cerr << "Error: " << result.errorMessage << "\n\n";
               generateHelp(std::cerr, commandPathPrefix);
+              result.exitCode = 1;
               return result;
             }
 
@@ -613,6 +626,7 @@ public:
                   matchedArg->name;
               std::cerr << "Error: " << result.errorMessage << "\n\n";
               generateHelp(std::cerr, commandPathPrefix);
+              result.exitCode = 1;
               return result;
             }
           }
@@ -648,6 +662,7 @@ public:
               "Invalid value for positional argument '" + posArgDef.name + "'";
           std::cerr << "Error: " << result.errorMessage << "\n\n";
           generateHelp(std::cerr, commandPathPrefix);
+          result.exitCode = 1;
           return result;
         }
 
@@ -664,6 +679,7 @@ public:
                                   posArgDef.name;
             std::cerr << "Error: " << result.errorMessage << "\n\n";
             generateHelp(std::cerr, commandPathPrefix);
+            result.exitCode = 1;
             return result;
           }
 
@@ -707,6 +723,7 @@ public:
         // Print error and help for this command to stderr
         std::cerr << "Error: " << result.errorMessage << "\n\n";
         generateHelp(std::cerr, commandPathPrefix);
+        result.exitCode = 1;
         return result;
       }
     }
@@ -725,6 +742,7 @@ public:
             "Missing required option: " + arg.getDisplayName();
         std::cerr << "Error: " << result.errorMessage << "\n\n";
         generateHelp(std::cerr, commandPathPrefix);
+        result.exitCode = 1;
         return result;
       }
     }
@@ -740,6 +758,7 @@ public:
               "Missing required positional argument: " + posArgDef.name;
           std::cerr << "Error: " << result.errorMessage << "\n\n";
           generateHelp(std::cerr, commandPathPrefix);
+          result.exitCode = 1;
           return result;
         } else {
           // Add default value for optional missing positional args
@@ -751,7 +770,7 @@ public:
     // Only execute the handler if parsing was successful and no subcommand took
     // over.
     if (handler_ && result.status == ParseResult::PPARSER_STATUS_SUCCESS) {
-      handler_(result);
+      result.exitCode = handler_(result);
     }
 
     return result;
@@ -990,6 +1009,7 @@ public:
       ParseResult errorResult;
       errorResult.status = ParseResult::PPARSER_STATUS_PARSE_ERROR;
       errorResult.errorMessage = "Invalid arguments provided (argc < 1)";
+      errorResult.exitCode = 1;
       return errorResult;
     }
 
@@ -1007,6 +1027,7 @@ public:
       ParseResult errorResult;
       errorResult.status = ParseResult::PPARSER_STATUS_PARSE_ERROR;
       errorResult.errorMessage = "ArgumentParser is not initialized correctly.";
+      errorResult.exitCode = 1;
       return errorResult;
     }
 
@@ -1042,6 +1063,7 @@ public:
         std::cerr << "Error: " << result.errorMessage << "\n\n";
         // Show root help on unexpected trailing arguments error (to stderr)
         rootCommand_->generateHelp(std::cerr, "");
+        result.exitCode = 1;
         return result;
       }
 
@@ -1051,6 +1073,7 @@ public:
       ParseResult errorResult;
       errorResult.status = ParseResult::PPARSER_STATUS_PARSE_ERROR;
       errorResult.errorMessage = e.what();
+      errorResult.exitCode = 1;
       // Show root help on lexer error (to stderr)
       if (rootCommand_)
         rootCommand_->generateHelp(std::cerr, "");
@@ -1061,6 +1084,7 @@ public:
       ParseResult errorResult;
       errorResult.status = ParseResult::PPARSER_STATUS_PARSE_ERROR;
       errorResult.errorMessage = e.what();
+      errorResult.exitCode = 1;
       // Show root help on general parser error (to stderr)
       if (rootCommand_)
         rootCommand_->generateHelp(std::cerr, "");
