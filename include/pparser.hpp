@@ -250,8 +250,7 @@ public:
   // Vector storing parsed positional argument values in order
   std::vector<ArgValue> positionalValues;
 
-  ParseResult()
-      : status(PPARSER_STATUS_SUCCESS), exitCode(0) {} // Default exit code 0
+  ParseResult() : status(PPARSER_STATUS_SUCCESS), exitCode(0) {}
 
   // Check if a keyword arg was provided (doesn't check type)
   bool hasKeywordArg(const std::string &name) const {
@@ -413,11 +412,46 @@ public:
     sub->ensureHelpArgument();
 
     std::string subName = sub->getName();
-    if (subcommands_.find(subName) != subcommands_.end()) {
-      throw std::invalid_argument("Subcommand '" + subName +
+    // Check for conflicts with existing names and aliases
+    if (subcommands_.count(subName)) {
+      throw std::invalid_argument("Subcommand name '" + subName +
                                   "' already exists.");
     }
+    for (const auto &pair : subcommands_) {
+      if (pair.second->hasAlias(subName)) {
+        throw std::invalid_argument("Subcommand name '" + subName +
+                                    "' conflicts with an existing alias.");
+      }
+      for (const auto &alias : sub->getAliases()) {
+        if (pair.first == alias || pair.second->hasAlias(alias)) {
+          throw std::invalid_argument(
+              "Subcommand alias '" + alias +
+              "' conflicts with an existing name or alias.");
+        }
+      }
+    }
+    // Also check the new subcommand's aliases against its own name
+    for (const auto &alias : sub->getAliases()) {
+      if (alias == subName) {
+        throw std::invalid_argument("Subcommand alias '" + alias +
+                                    "' cannot be the same as its name '" +
+                                    subName + "'.");
+      }
+    }
+
     subcommands_[subName] = sub;
+    return *this;
+  }
+
+  // Add an alias to this command
+  Command &addAlias(const std::string &alias) {
+    if (alias == name_) {
+      throw std::invalid_argument(
+          "Alias cannot be the same as the command name '" + name_ + "'.");
+    }
+    // Could add checks here to ensure alias doesn't conflict with other sibling
+    // commands/aliases if added to a parent
+    aliases_.push_back(alias);
     return *this;
   }
 
@@ -439,6 +473,7 @@ public:
   const std::vector<ArgumentDef> &getPositionalArgs() const {
     return positionalArgs_;
   }
+  const std::vector<std::string> &getAliases() const { return aliases_; }
   CommandHandler getHandler() const { return handler_; }
 
   ParseResult parse(const std::vector<lexer::Token> &tokens,
@@ -636,12 +671,37 @@ public:
 
       // Check for subcommand
       if (kind == lexer::TOK_ID) {
-        std::string potentialSubcommand = token.getIdValue();
-        std::map<std::string, std::shared_ptr<Command>>::const_iterator subIt =
-            subcommands_.find(potentialSubcommand);
+        std::string potentialSubcommandOrAlias = token.getIdValue();
+        std::shared_ptr<Command> matchedSubcommand = nullptr;
+
+        // First, check if it's a direct name match
+        auto subIt = subcommands_.find(potentialSubcommandOrAlias);
         if (subIt != subcommands_.end()) {
-          currentTokenIndex++;
-          ParseResult subResult = subIt->second->parse(
+          matchedSubcommand = subIt->second;
+        } else {
+          // If not a direct name match, check aliases
+          for (const auto &pair : subcommands_) {
+            if (pair.second->hasAlias(potentialSubcommandOrAlias)) {
+              // Prevent aliasing to multiple commands
+              if (matchedSubcommand) {
+                result.status = ParseResult::PPARSER_STATUS_PARSE_ERROR;
+                result.errorMessage = "Ambiguous alias '" +
+                                      potentialSubcommandOrAlias +
+                                      "' matches multiple subcommands.";
+                std::cerr << "Error: " << result.errorMessage << "\n\n";
+                generateHelp(std::cerr, commandPathPrefix);
+                result.exitCode = 1;
+                return result;
+              }
+              matchedSubcommand = pair.second;
+            }
+          }
+        }
+
+        // If a subcommand (by name or alias) was found
+        if (matchedSubcommand) {
+          currentTokenIndex++; // Consume the subcommand/alias token
+          ParseResult subResult = matchedSubcommand->parse(
               tokens, currentTokenIndex, result.commandPath + " ");
 
           // Propagate the result (success, error, or help request) from the
@@ -866,7 +926,17 @@ public:
       for (std::map<std::string, std::shared_ptr<Command>>::const_iterator it =
                subcommands_.begin();
            it != subcommands_.end(); ++it) {
-        os << "  " << it->first << "\t" << it->second->getHelp() << "\n";
+        os << "  " << it->first; // Print the main command name
+        // Print aliases if any exist
+        const auto &aliases = it->second->getAliases();
+        if (!aliases.empty()) {
+          os << " (" << aliases[0];
+          for (size_t i = 1; i < aliases.size(); ++i) {
+            os << ", " << aliases[i];
+          }
+          os << ")";
+        }
+        os << "\t" << it->second->getHelp() << "\n";
       }
       os << "\nUse '" << fullCommandPath
          << " <command> --help' for more information on a command.\n";
@@ -883,6 +953,7 @@ private:
   std::vector<ArgumentDef> keywordArgs_;
   std::vector<ArgumentDef> positionalArgs_;
   std::map<std::string, std::shared_ptr<Command>> subcommands_;
+  std::vector<std::string> aliases_;
 
 public:
   CommandHandler handler_;
@@ -989,6 +1060,11 @@ private:
           ArgumentDef("help", "-h", "--help", "Show this help message and exit",
                       ARGTYPE_FLAG, false, ArgValue(false), true));
     }
+  }
+
+  // Check if the command has a specific alias
+  bool hasAlias(const std::string &alias) const {
+    return std::find(aliases_.begin(), aliases_.end(), alias) != aliases_.end();
   }
 };
 
