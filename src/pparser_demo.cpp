@@ -4,7 +4,7 @@
 #include <vector>
 
 // Handler for the 'add' subcommand
-void handleAddCommand(const pparser::ParseResult &result) {
+int handleAddCommand(const pparser::ParseResult &result) {
   std::cout << "Executing command: " << result.commandPath << std::endl;
 
   const std::vector<std::string> *files = result.getPositionalArgStringVector(
@@ -22,10 +22,12 @@ void handleAddCommand(const pparser::ParseResult &result) {
 
   std::cout << "  Force flag is " + std::string(*force ? "set." : "not set.")
             << std::endl;
+
+  return 0;
 }
 
 // Handler for the 'commit' subcommand
-void handleCommitCommand(const pparser::ParseResult &result) {
+int handleCommitCommand(const pparser::ParseResult &result) {
   std::cout << "Executing command: " << result.commandPath << std::endl;
 
   const std::string *message =
@@ -35,7 +37,8 @@ void handleCommitCommand(const pparser::ParseResult &result) {
   const bool *verbose =
       result.getKeywordArgBool("verbose"); // Optional '--verbose' flag
   if (!message) {
-    return;
+    std::cerr << "Error: Required '-m' option not provided." << std::endl;
+    return 1;
   }
 
   std::cout << "  Commit message: " << *message << std::endl;
@@ -44,6 +47,8 @@ void handleCommitCommand(const pparser::ParseResult &result) {
   std::cout << "  Verbose flag is " +
                    std::string(*verbose ? "set." : "not set.")
             << std::endl;
+
+  return 0;
 }
 
 // --- Main Demo ---

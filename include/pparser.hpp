@@ -304,6 +304,43 @@ public:
     return nullptr;
   }
 
+  // Getters returning value or a default if missing/wrong type
+  bool getKeywordArgBoolOrDefault(const std::string &name,
+                                  bool defaultValue = false) const {
+    const bool *ptr = getKeywordArgBool(name);
+    return ptr ? *ptr : defaultValue;
+  }
+
+  long long getKeywordArgIntOrDefault(const std::string &name,
+                                      long long defaultValue = 0) const {
+    const long long *ptr = getKeywordArgInt(name);
+    return ptr ? *ptr : defaultValue;
+  }
+
+  double getKeywordArgDoubleOrDefault(const std::string &name,
+                                      double defaultValue = 0.0) const {
+    const double *ptr = getKeywordArgDouble(name);
+    return ptr ? *ptr : defaultValue;
+  }
+
+  std::string
+  getKeywordArgStringOrDefault(const std::string &name,
+                               const std::string &defaultValue = "") const {
+    std::map<std::string, ArgValue>::const_iterator it =
+        keywordValues.find(name);
+    if (it != keywordValues.end()) {
+      return it->second.getStringValue(defaultValue);
+    }
+    return defaultValue;
+  }
+
+  // Returns a copy of the vector or an empty vector as default
+  std::vector<std::string>
+  getKeywordArgStringVectorOrDefault(const std::string &name) const {
+    const std::vector<std::string> *ptr = getKeywordArgStringVector(name);
+    return ptr ? *ptr : std::vector<std::string>();
+  }
+
   // Getters for positional args by index
   const bool *getPositionalArgBool(size_t index) const {
     if (index < positionalValues.size()) {
