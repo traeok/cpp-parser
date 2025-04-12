@@ -3,100 +3,100 @@
 #include <string>
 #include <vector>
 
-// Handler for the 'add' subcommand
-int handleAddCommand(const pparser::ParseResult &result) {
-  std::cout << "Executing command: " << result.commandPath << std::endl;
+// handler for the 'add' subcommand
+int handle_add_command(const pparser::ParseResult &result) {
+  std::cout << "executing command: " << result.command_path << std::endl;
 
-  const std::vector<std::string> *files = result.getPositionalArgStringVector(
+  const std::vector<std::string> *files = result.get_pos_arg_list(
       0); // 'files' is the first positional arg
   const bool *force =
-      result.getKeywordArgBool("force"); // Optional '--force' flag
+      result.get_kw_arg_bool("force"); // optional '--force' flag
 
   if (files) {
-    std::cout << "  Files to add: ";
+    std::cout << "  files to add: ";
     for (size_t i = 0; i < files->size(); ++i) {
       std::cout << (*files)[i] << (i == files->size() - 1 ? "" : ", ");
     }
     std::cout << std::endl;
   }
 
-  std::cout << "  Force flag is " + std::string(*force ? "set." : "not set.")
+  std::cout << "  force flag is " + std::string(*force ? "set." : "not set.")
             << std::endl;
 
   return 0;
 }
 
-// Handler for the 'commit' subcommand
-int handleCommitCommand(const pparser::ParseResult &result) {
-  std::cout << "Executing command: " << result.commandPath << std::endl;
+// handler for the 'commit' subcommand
+int handle_commit_command(const pparser::ParseResult &result) {
+  std::cout << "executing command: " << result.command_path << std::endl;
 
   const std::string *message =
-      result.getKeywordArgString("message"); // Required '-m' option
+      result.get_kw_arg_string("message"); // required '-m' option
   const bool *amend =
-      result.getKeywordArgBool("amend"); // Optional '--amend' flag
+      result.get_kw_arg_bool("amend"); // optional '--amend' flag
   const bool *verbose =
-      result.getKeywordArgBool("verbose"); // Optional '--verbose' flag
+      result.get_kw_arg_bool("verbose"); // optional '--verbose' flag
   if (!message) {
-    std::cerr << "Error: Required '-m' option not provided." << std::endl;
+    std::cerr << "error: required '-m' option not provided." << std::endl;
     return 1;
   }
 
-  std::cout << "  Commit message: " << *message << std::endl;
-  std::cout << "  Amend flag is " + std::string(*amend ? "set." : "not set.")
+  std::cout << "  commit message: " << *message << std::endl;
+  std::cout << "  amend flag is " + std::string(*amend ? "set." : "not set.")
             << std::endl;
-  std::cout << "  Verbose flag is " +
+  std::cout << "  verbose flag is " +
                    std::string(*verbose ? "set." : "not set.")
             << std::endl;
 
   return 0;
 }
 
-// --- Main Demo ---
+// --- main demo ---
 
 int main(int argc, char *argv[]) {
   pparser::ArgumentParser parser("git_demo",
-                                 "A simple git-like command line demo.");
+                                 "a simple git-like command line demo.");
 
-  parser.getRootCommand().addKeywordArg("verbose", "-v", "--verbose",
-                                        "Enable verbose output",
-                                        pparser::ARGTYPE_FLAG);
+  parser.get_root_command().add_keyword_arg("verbose", "-v", "--verbose",
+                                        "enable verbose output",
+                                        pparser::argtype_flag);
 
-  std::shared_ptr<pparser::Command> addCmd = std::make_shared<pparser::Command>(
-      "add", "Add file contents to the index");
-  addCmd
-      ->addPositionalArg("files", "Files to add", pparser::ARGTYPE_MULTIPLE,
-                         true) // Required, multiple values
-      .addKeywordArg("force", "-f", "--force", "Allow adding ignored files",
-                     pparser::ARGTYPE_FLAG, false)
-      .setHandler(handleAddCommand);
+  std::shared_ptr<pparser::Command> add_cmd = std::make_shared<pparser::Command>(
+      "add", "add file contents to the index");
+  add_cmd
+      ->add_positional_arg("files", "files to add", pparser::argtype_multiple,
+                         true) // required, multiple values
+      .add_keyword_arg("force", "-f", "--force", "allow adding ignored files",
+                     pparser::argtype_flag, false)
+      .set_handler(handle_add_command);
 
-  std::shared_ptr<pparser::Command> commitCmd =
+  std::shared_ptr<pparser::Command> commit_cmd =
       std::make_shared<pparser::Command>("commit",
-                                         "Record changes to the repository");
-  commitCmd
-      ->addKeywordArg("message", "-m", "--message", "Commit message",
-                      pparser::ARGTYPE_SINGLE, true) // Required, single value
-      .addKeywordArg("amend", "-a", "--amend", "Amend the previous commit",
-                     pparser::ARGTYPE_FLAG, false)
-      .addKeywordArg("verbose", "-v", "--verbose", "Enable verbose output",
-                     pparser::ARGTYPE_FLAG, false)
-      .setHandler(handleCommitCommand);
+                                         "record changes to the repository");
+  commit_cmd
+      ->add_keyword_arg("message", "-m", "--message", "commit message",
+                      pparser::argtype_single, true) // required, single value
+      .add_keyword_arg("amend", "-a", "--amend", "amend the previous commit",
+                     pparser::argtype_flag, false)
+      .add_keyword_arg("verbose", "-v", "--verbose", "enable verbose output",
+                     pparser::argtype_flag, false)
+      .set_handler(handle_commit_command);
 
-  parser.getRootCommand().addSubcommand(addCmd);
-  parser.getRootCommand().addSubcommand(commitCmd);
+  parser.get_root_command().add_command(add_cmd);
+  parser.get_root_command().add_command(commit_cmd);
 
   pparser::ParseResult result;
 
   if (argc < 2) {
     std::cout << "----------------------------------------" << std::endl;
-    std::cout << "pparser demo (git-like CLI)" << std::endl;
-    std::cout << "Enter commands, e.g.:" << std::endl;
+    std::cout << "pparser demo (git-like cli)" << std::endl;
+    std::cout << "enter commands, e.g.:" << std::endl;
     std::cout << "\tadd file1.txt -f" << std::endl;
-    std::cout << "\tcommit -m \"Initial\"" << std::endl;
+    std::cout << "\tcommit -m \"initial\"" << std::endl;
     std::cout << "\thelp" << std::endl;
     std::cout << "\t--help" << std::endl;
     std::cout << "\tadd --help" << std::endl;
-    std::cout << "Type 'exit' or 'quit' to quit." << std::endl;
+    std::cout << "type 'exit' or 'quit' to quit." << std::endl;
     std::cout << "----------------------------------------" << std::endl;
 
     std::string line;
@@ -120,7 +120,7 @@ int main(int argc, char *argv[]) {
     std::cout << "----------------------------------------" << std::endl;
   }
 
-  return (result.status == pparser::ParseResult::PPARSER_STATUS_PARSE_ERROR)
+  return (result.status == pparser::ParseResult::ParserStatus_ParseError)
              ? 1
              : 0;
 }

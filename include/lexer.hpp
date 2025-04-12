@@ -14,27 +14,27 @@
 
 namespace lexer {
 /**
- * Represents a location within a piece of source code.
- * Includes the filename, line, and column.
+ * represents a location within a piece of input or source.
+ * includes the filename, line, and column.
  */
 class Location {
 public:
-  Location() : filename(""), line(1), col(1) {}
+  Location() : m_filename(""), m_line(1), m_col(1) {}
   Location(const std::string &filename, size_t line, size_t col)
-      : filename(filename), line(line), col(col) {}
+      : m_filename(filename), m_line(line), m_col(col) {}
 
-  const std::string &getFilename() const { return filename; }
-  size_t getLine() const { return line; }
-  size_t getCol() const { return col; }
+  const std::string &get_filename() const { return m_filename; }
+  size_t get_line() const { return m_line; }
+  size_t get_col() const { return m_col; }
 
   void print(std::ostream &os) const {
-    os << (filename.empty() ? "<string>" : filename) << " (" << line << ":"
-       << col << ")";
+    os << (m_filename.empty() ? "<string>" : m_filename) << " (" << m_line << ":"
+       << m_col << ")";
   }
 
-  std::string filename;
-  size_t line;
-  size_t col;
+  std::string m_filename;
+  size_t m_line;
+  size_t m_col;
 };
 
 inline std::ostream &operator<<(std::ostream &os, const Location &loc) {
@@ -43,46 +43,46 @@ inline std::ostream &operator<<(std::ostream &os, const Location &loc) {
 }
 
 /**
- * Iterator over a Source object's characters.
- * Keeps track of line and column and can produce a Location.
+ * iterator over an input's characters.
+ * keeps track of line and column and can produce a location.
  */
-class SourceIterator {
+class InputIter {
 public:
-  SourceIterator(const std::string &filename, const std::vector<char> &code)
-      : code(code), filename(filename), line(1), col(1), pos(0) {}
+  InputIter(const std::string &filename, const std::vector<char> &code)
+      : m_input(code), m_filename(filename), m_line(1), m_col(1), m_pos(0) {}
 
   char current() const {
-    if (pos < code.size()) {
-      return code[pos];
+    if (m_pos < m_input.size()) {
+      return m_input[m_pos];
     }
     return '\0';
   }
 
   char peek() const {
-    if (pos + 1 < code.size()) {
-      return code[pos + 1];
+    if (m_pos + 1 < m_input.size()) {
+      return m_input[m_pos + 1];
     }
     return '\0';
   }
 
   char peek2() const {
-    if (pos + 2 < code.size()) {
-      return code[pos + 2];
+    if (m_pos + 2 < m_input.size()) {
+      return m_input[m_pos + 2];
     }
     return '\0';
   }
 
   void next() {
-    if (pos < code.size()) {
-      if (code[pos] == '\n') {
-        line++;
-        col = 1;
-      } else if (code[pos] == '\t') {
-        col += 4;
+    if (m_pos < m_input.size()) {
+      if (m_input[m_pos] == '\n') {
+        m_line++;
+        m_col = 1;
+      } else if (m_input[m_pos] == '\t') {
+        m_col += 4;
       } else {
-        col++;
+        m_col++;
       }
-      pos++;
+      m_pos++;
     }
   }
 
@@ -91,39 +91,39 @@ public:
     next();
   }
 
-  bool hasMore() const { return pos < code.size(); }
-  size_t position() const { return pos; }
-  Location getLocation() const { return Location(filename, line, col); }
-  size_t getLine() const { return line; }
-  size_t getCol() const { return col; }
-  const std::string &getFilename() const { return filename; }
+  bool has_more() const { return m_pos < m_input.size(); }
+  size_t position() const { return m_pos; }
+  Location get_location() const { return Location(m_filename, m_line, m_col); }
+  size_t get_line() const { return m_line; }
+  size_t get_col() const { return m_col; }
+  const std::string &get_filename() const { return m_filename; }
 
 private:
-  const std::vector<char> &code;
-  std::string filename;
-  size_t line;
-  size_t col;
-  size_t pos;
+  const std::vector<char> &m_input;
+  std::string m_filename;
+  size_t m_line;
+  size_t m_col;
+  size_t m_pos;
 };
 
 /**
- * Represents a piece of source code.
- * Includes the filename (if any) and the raw source code.
+ * represents a piece of input or source code.
+ * includes the filename (if applicable) and the raw data.
  */
-class Source {
+class Src {
 public:
-  Source() {}
+  Src() {}
 
-  static Source fromFile(const std::string &filename) {
+  static Src from_file(const std::string &filename) {
     std::ifstream file(filename.c_str(), std::ios::binary);
     if (!file.is_open()) {
-      throw std::runtime_error("Could not open file: " + filename);
+      throw std::runtime_error("could not open file: " + filename);
     }
 
     file.seekg(0, std::ios::end);
     std::streampos size = file.tellg();
     if (size < 0) {
-      throw std::runtime_error("Error determining size of file: " + filename);
+      throw std::runtime_error("error determining size of file: " + filename);
     }
     std::vector<char> buffer(static_cast<size_t>(size));
     file.seekg(0, std::ios::beg);
@@ -131,104 +131,104 @@ public:
     if (size > 0) {
       file.read(buffer.data(), size);
       if (!file && !file.eof()) {
-        throw std::runtime_error("Error reading file: " + filename);
+        throw std::runtime_error("error reading file: " + filename);
       }
     }
 
-    return Source(filename, buffer);
+    return Src(filename, buffer);
   }
 
-  static Source fromString(const std::string &codeStr,
+  static Src from_string(const std::string &code_str,
                            const std::string &filename = "<string>") {
-    std::vector<char> chars(codeStr.begin(), codeStr.end());
-    return Source(filename, chars);
+    std::vector<char> chars(code_str.begin(), code_str.end());
+    return Src(filename, chars);
   }
 
-  const std::string &getFilename() const { return filename; }
-  const std::vector<char> &getCode() const { return code; }
+  const std::string &get_filename() const { return m_filename; }
+  const std::vector<char> &get_code() const { return m_input; }
 
-  SourceIterator getIterator() const { return SourceIterator(filename, code); }
+  InputIter get_iterator() const { return InputIter(m_filename, m_input); }
 
-  const char *getCodePtr() const { return code.empty() ? NULL : &code[0]; }
+  const char *get_code_ptr() const { return m_input.empty() ? nullptr : &m_input[0]; }
 
 private:
-  Source(const std::string &filename, const std::vector<char> &code)
-      : filename(filename), code(code) {}
+  Src(const std::string &filename, const std::vector<char> &code)
+      : m_filename(filename), m_input(code) {}
 
-  std::string filename;
-  std::vector<char> code;
+  std::string m_filename;
+  std::vector<char> m_input;
 };
 
 enum LexErrorKind {
-  INVALID_CHAR,
-  UNCLOSED_STRING,
-  UNKNOWN_ESCAPE,
-  INT_OUT_OF_RANGE,
-  INCOMPLETE_INT,
-  FLOAT_OUT_OF_RANGE,
-  INVALID_FLOAT
+  InvalidChar,
+  UnclosedString,
+  UnknownEscape,
+  IntOutOfRange,
+  IncompleteInt,
+  FloatOutOfRange,
+  InvalidFloat
 };
 
 class LexError : public std::exception {
 public:
-  LexError(const Location &loc, LexErrorKind kind) : loc(loc), kind(kind) {}
+  LexError(const Location &loc, LexErrorKind kind) : m_loc(loc), m_kind(kind) {}
 
-  static LexError invalidChar(const Location &loc) {
-    return LexError(loc, INVALID_CHAR);
+  static LexError invalid_char(const Location &loc) {
+    return LexError(loc, LexErrorKind::InvalidChar);
   }
-  static LexError unclosedString(const Location &loc) {
-    return LexError(loc, UNCLOSED_STRING);
+  static LexError unclosed_string(const Location &loc) {
+    return LexError(loc, LexErrorKind::UnclosedString);
   }
-  static LexError unknownEscape(const Location &loc) {
-    return LexError(loc, UNKNOWN_ESCAPE);
+  static LexError unknown_escape(const Location &loc) {
+    return LexError(loc, LexErrorKind::UnknownEscape);
   }
-  static LexError intOutOfRange(const Location &loc) {
-    return LexError(loc, INT_OUT_OF_RANGE);
+  static LexError int_out_of_range(const Location &loc) {
+    return LexError(loc, LexErrorKind::IntOutOfRange);
   }
-  static LexError incompleteInt(const Location &loc) {
-    return LexError(loc, INCOMPLETE_INT);
+  static LexError incomplete_int(const Location &loc) {
+    return LexError(loc, LexErrorKind::IncompleteInt);
   }
-  static LexError floatOutOfRange(const Location &loc) {
-    return LexError(loc, FLOAT_OUT_OF_RANGE);
+  static LexError float_out_of_range(const Location &loc) {
+    return LexError(loc, LexErrorKind::FloatOutOfRange);
   }
-  static LexError invalidFloat(const Location &loc) {
-    return LexError(loc, INVALID_FLOAT);
+  static LexError invalid_float(const Location &loc) {
+    return LexError(loc, LexErrorKind::InvalidFloat);
   }
 
-  const Location &getLocation() const { return loc; }
-  LexErrorKind getKind() const { return kind; }
+  const Location &get_location() const { return m_loc; }
+  LexErrorKind get_kind() const { return m_kind; }
 
   virtual const char *what() const throw() {
-    if (message.empty()) {
-      message = toString();
+    if (m_msg.empty()) {
+      m_msg = to_string();
     }
-    return message.c_str();
+    return m_msg.c_str();
   }
 
-  std::string toString() const {
+  std::string to_string() const {
     std::ostringstream ss;
-    ss << loc << ": ";
+    ss << m_loc << ": ";
 
-    switch (kind) {
-    case INVALID_CHAR:
+    switch (m_kind) {
+    case LexErrorKind::InvalidChar:
       ss << "invalid character";
       break;
-    case UNCLOSED_STRING:
+    case LexErrorKind::UnclosedString:
       ss << "unclosed string literal";
       break;
-    case UNKNOWN_ESCAPE:
+    case LexErrorKind::UnknownEscape:
       ss << "unknown escape character";
       break;
-    case INT_OUT_OF_RANGE:
+    case LexErrorKind::IntOutOfRange:
       ss << "integer literal out of 64-bit range";
       break;
-    case INCOMPLETE_INT:
+    case LexErrorKind::IncompleteInt:
       ss << "incomplete integer literal";
       break;
-    case FLOAT_OUT_OF_RANGE:
+    case LexErrorKind::FloatOutOfRange:
       ss << "floating-point literal out of range";
       break;
-    case INVALID_FLOAT:
+    case LexErrorKind::InvalidFloat:
       ss << "invalid floating-point literal";
       break;
     default:
@@ -240,65 +240,65 @@ public:
   }
 
 private:
-  Location loc;
-  LexErrorKind kind;
-  mutable std::string message;
+  Location m_loc;
+  LexErrorKind m_kind;
+  mutable std::string m_msg;
 };
 
-enum Base { DEC = 10, BIN = 2, HEX = 16 };
+enum Radix { Dec = 10, Bin = 2, Hex = 16 };
 
 enum TokenKind {
-  TOK_EOF,
+  TokEof,
 
-  TOK_IF,
-  TOK_ELSE,
-  TOK_FOR,
-  TOK_IN,
-  TOK_WHILE,
-  TOK_BREAK,
-  TOK_RETURN,
-  TOK_INT,
-  TOK_BOOL,
-  TOK_STRING,
-  TOK_AND,
-  TOK_OR,
-  TOK_NOT,
-  TOK_TRUE,
-  TOK_FALSE,
+  TokIf,
+  TokElse,
+  TokFor,
+  TokIn,
+  TokWhile,
+  TokBreak,
+  TokReturn,
+  TokInt,
+  TokBool,
+  TokString,
+  TokAnd,
+  TokOr,
+  TokNot,
+  TokTrue,
+  TokFalse,
 
-  TOK_ASSIGN,
-  TOK_PLUS,
-  TOK_MINUS,
-  TOK_DOUBLE_MINUS,
-  TOK_TIMES,
-  TOK_DIVIDE,
-  TOK_MODULO,
-  TOK_SHL,
-  TOK_SHR,
-  TOK_LESS,
-  TOK_GREATER,
-  TOK_LESS_EQ,
-  TOK_GREATER_EQ,
-  TOK_EQ,
-  TOK_NOT_EQ,
+  TokAssign,
+  TokPlus,
+  TokMinus,
+  TokDoubleMinus,
+  TokTimes,
+  TokDivide,
+  TokModulo,
+  TokShl,
+  TokShr,
+  TokLess,
+  TokGreater,
+  TokLessEq,
+  TokGreaterEq,
+  TokEq,
+  TokNotEq,
 
-  TOK_LPAREN,
-  TOK_RPAREN,
-  TOK_LBRACE,
-  TOK_RBRACE,
-  TOK_LBRACKET,
-  TOK_RBRACKET,
-  TOK_SEMI,
-  TOK_COLON,
-  TOK_COMMA,
-  TOK_DOT,
+  TokLParen,
+  TokRParen,
+  TokLBrace,
+  TokRBrace,
+  TokLBracket,
+  TokRBracket,
+  TokSemi,
+  TokColon,
+  TokComma,
+  TokDot,
 
-  TOK_ID,
-  TOK_INT_LIT,
-  TOK_FLOAT_LIT,
-  TOK_STR_LIT,
-  TOK_FLAG_SHORT, // e.g., -f
-  TOK_FLAG_LONG   // e.g., --force
+  TokId,
+  TokIntLit,
+  TokFloatLit,
+  TokStrLit,
+  TokFlagShort, // e.g., -f
+  TokFlagLong   // e.g., --force
 };
 
 struct Span {
@@ -313,10 +313,10 @@ struct StringRef {
   const char *start;
   size_t length;
 
-  StringRef() : start(NULL), length(0) {}
+  StringRef() : start(nullptr), length(0) {}
   StringRef(const char *s, size_t l) : start(s), length(l) {}
 
-  std::string toString() const {
+  std::string to_string() const {
     if (!start)
       return "";
     return std::string(start, length);
@@ -330,188 +330,188 @@ struct StringRef {
 };
 
 union TokenData {
-  struct IntLitData {
+  struct IntLit {
     long long value;
-    Base base;
-  } intLit;
+    Radix base;
+  } int_lit;
 
-  struct FloatLitData {
+  struct FloatLit {
     double value;
-    bool hasExponent;
-  } floatLit;
+    bool has_exponent;
+  } float_lit;
 
-  StringRef stringRef;
+  StringRef string_ref;
 
-  TokenData() : stringRef() {}
+  TokenData() : string_ref() {}
   ~TokenData() {}
 };
 
-// No-alloc class to represent lexical tokens
+// no-alloc class to represent lexical tokens
 class Token {
 public:
-  Token() : kind(TOK_EOF), span() {}
+  Token() : m_kind(TokEof), m_span() {}
 
-  // Constructor for simple tokens
-  Token(TokenKind kind, const Span &span) : kind(kind), span(span) {
-    data.intLit.value = 0;
-    data.intLit.base = DEC;
+  // constructor for simple tokens
+  Token(TokenKind kind, const Span &span) : m_kind(kind), m_span(span) {
+    m_data.int_lit.value = 0;
+    m_data.int_lit.base = Dec;
   }
 
-  Token(const Token &other) : kind(other.kind), span(other.span) {
-    copyData(other);
+  Token(const Token &other) : m_kind(other.m_kind), m_span(other.m_span) {
+    copy_data(other);
   }
 
   Token &operator=(const Token &other) {
     if (this != &other) {
-      kind = other.kind;
-      span = other.span;
-      copyData(other);
+      m_kind = other.m_kind;
+      m_span = other.m_span;
+      copy_data(other);
     }
     return *this;
   }
 
-  // TODO: May be unneeded
+  // todo: may be unneeded
   ~Token() {}
 
-  // Static factory methods for complex tokens below
+  // static factory methods for complex tokens below
 
-  static Token makeId(const char *start_ptr, size_t len, const Span &span) {
-    Token token(TOK_ID, span);
-    token.data.stringRef.start = start_ptr;
-    token.data.stringRef.length = len;
+  static Token make_id(const char *start_ptr, size_t len, const Span &span) {
+    Token token(TokId, span);
+    token.m_data.string_ref.start = start_ptr;
+    token.m_data.string_ref.length = len;
     return token;
   }
 
-  static Token makeShortFlag(const char *name_ptr, size_t len,
+  static Token make_short_flag(const char *name_ptr, size_t len,
                              const Span &span) {
-    Token token(TOK_FLAG_SHORT, span);
-    token.data.stringRef.start = name_ptr;
-    token.data.stringRef.length = len;
+    Token token(TokFlagShort, span);
+    token.m_data.string_ref.start = name_ptr;
+    token.m_data.string_ref.length = len;
     return token;
   }
 
-  static Token makeLongFlag(const char *name_ptr, size_t len,
+  static Token make_long_flag(const char *name_ptr, size_t len,
                             const Span &span) {
-    Token token(TOK_FLAG_LONG, span);
-    token.data.stringRef.start = name_ptr;
-    token.data.stringRef.length = len;
+    Token token(TokFlagLong, span);
+    token.m_data.string_ref.start = name_ptr;
+    token.m_data.string_ref.length = len;
     return token;
   }
 
-  static Token makeIntLit(long long value, Base base, const Span &span) {
-    Token token(TOK_INT_LIT, span);
-    token.data.intLit.value = value;
-    token.data.intLit.base = base;
+  static Token make_int_lit(long long value, Radix base, const Span &span) {
+    Token token(TokIntLit, span);
+    token.m_data.int_lit.value = value;
+    token.m_data.int_lit.base = base;
     return token;
   }
 
-  static Token makeFloatLit(double value, bool hasExponent, const Span &span) {
-    Token token(TOK_FLOAT_LIT, span);
-    token.data.floatLit.value = value;
-    token.data.floatLit.hasExponent = hasExponent;
+  static Token make_float_lit(double value, bool has_exponent, const Span &span) {
+    Token token(TokFloatLit, span);
+    token.m_data.float_lit.value = value;
+    token.m_data.float_lit.has_exponent = has_exponent;
     return token;
   }
 
-  // Stores raw string content (pointer between quotes, length).
-  // Escape sequences are processed on demand by getStrLitValue().
-  static Token makeStrLit(const char *content_start_ptr, size_t content_len,
+  // stores raw string content (pointer between quotes, length).
+  // escape sequences are processed on demand by get_str_lit_value().
+  static Token make_str_lit(const char *content_start_ptr, size_t content_len,
                           const Span &span) {
-    Token token(TOK_STR_LIT, span);
-    token.data.stringRef.start = content_start_ptr;
-    token.data.stringRef.length = content_len;
+    Token token(TokStrLit, span);
+    token.m_data.string_ref.start = content_start_ptr;
+    token.m_data.string_ref.length = content_len;
     return token;
   }
 
-  TokenKind getKind() const { return kind; }
-  const Span &getSpan() const { return span; }
+  TokenKind get_kind() const { return m_kind; }
+  const Span &get_span() const { return m_span; }
 
-  // Getter methods for complex token data below
+  // getter methods for complex token data below
 
-  // Identifier/flag content (raw pointer and length)
-  const char *getStringRefStart() const {
-    // Check for kinds that use stringRef
-    if (kind == TOK_ID || kind == TOK_STR_LIT || kind == TOK_FLAG_SHORT ||
-        kind == TOK_FLAG_LONG) {
-      return data.stringRef.start;
+  // identifier/flag content (raw pointer and length)
+  const char *get_string_ref_start() const {
+    // check for kinds that use StringRef
+    if (m_kind == TokId || m_kind == TokStrLit || m_kind == TokFlagShort ||
+        m_kind == TokFlagLong) {
+      return m_data.string_ref.start;
     }
     return nullptr;
   }
 
-  size_t getStringRefLength() const {
-    // Check for kinds that use stringRef
-    if (kind == TOK_ID || kind == TOK_STR_LIT || kind == TOK_FLAG_SHORT ||
-        kind == TOK_FLAG_LONG) {
-      return data.stringRef.length;
+  size_t get_string_ref_length() const {
+    // check for kinds that use StringRef
+    if (m_kind == TokId || m_kind == TokStrLit || m_kind == TokFlagShort ||
+        m_kind == TokFlagLong) {
+      return m_data.string_ref.length;
     }
     return 0u;
   }
 
-  // Helper to get Identifier/Flag value as std::string (allocates)
-  std::string getIdValue() const {
-    // NOTE: This returns the NAME of the flag, not including dashes.
-    if (kind == TOK_ID || kind == TOK_FLAG_SHORT || kind == TOK_FLAG_LONG) {
-      if (data.stringRef.start) {
-        return std::string(data.stringRef.start, data.stringRef.length);
+  // helper to get identifier/flag value as std::string (allocates)
+  std::string get_id_value() const {
+    // note: this returns the name of the flag, not including dashes.
+    if (m_kind == TokId || m_kind == TokFlagShort || m_kind == TokFlagLong) {
+      if (m_data.string_ref.start) {
+        return std::string(m_data.string_ref.start, m_data.string_ref.length);
       } else {
         return "";
       }
     }
-    // TODO: Consider throwing or returning a sentinel
-    throw std::runtime_error("Token is not an identifier or flag");
+    // todo: consider throwing or returning a sentinel
+    throw std::runtime_error("token is not an identifier or flag");
   }
 
-  long long getIntValue() const {
-    if (kind == TOK_INT_LIT) {
-      return data.intLit.value;
+  long long get_int_value() const {
+    if (m_kind == TokIntLit) {
+      return m_data.int_lit.value;
     }
-    // TODO: Consider throwing or returning a sentinel
-    throw std::runtime_error("Token is not an integer literal");
+    // todo: consider throwing or returning a sentinel
+    throw std::runtime_error("token is not an integer literal");
   }
 
-  Base getIntBase() const {
-    if (kind == TOK_INT_LIT) {
-      return data.intLit.base;
+  Radix get_int_base() const {
+    if (m_kind == TokIntLit) {
+      return m_data.int_lit.base;
     }
-    // TODO: Consider throwing or returning a sentinel
-    throw std::runtime_error("Token is not an integer literal");
+    // todo: consider throwing or returning a sentinel
+    throw std::runtime_error("token is not an integer literal");
   }
 
-  double getFloatValue() const {
-    if (kind == TOK_FLOAT_LIT) {
-      return data.floatLit.value;
+  double get_float_value() const {
+    if (m_kind == TokFloatLit) {
+      return m_data.float_lit.value;
     }
-    // TODO: Consider throwing or returning a sentinel
-    throw std::runtime_error("Token is not a float literal");
+    // todo: consider throwing or returning a sentinel
+    throw std::runtime_error("token is not a float literal");
   }
 
-  bool hasFloatExponent() const {
-    if (kind == TOK_FLOAT_LIT) {
-      return data.floatLit.hasExponent;
+  bool has_float_exponent() const {
+    if (m_kind == TokFloatLit) {
+      return m_data.float_lit.has_exponent;
     }
-    // TODO: Consider throwing or returning a sentinel
-    throw std::runtime_error("Token is not a float literal");
+    // todo: consider throwing or returning a sentinel
+    throw std::runtime_error("token is not a float literal");
   }
 
-  // Get a string literal value (processes escapes, allocates a new std::string)
-  std::string getStrLitValue() const {
-    if (kind != TOK_STR_LIT) {
-      throw std::runtime_error("Token is not a string literal");
+  // get a string literal value (processes escapes, allocates a new std::string)
+  std::string get_str_lit_value() const {
+    if (m_kind != TokStrLit) {
+      throw std::runtime_error("token is not a string literal");
     }
-    if (!data.stringRef.start)
-      return ""; // Should not happen if created correctly
+    if (!m_data.string_ref.start)
+      return ""; // should not happen if created correctly
 
     std::string processed_value;
-    // Estimate capacity, might overestimate if many escapes
-    processed_value.reserve(data.stringRef.length);
-    const char *ptr = data.stringRef.start;
-    const char *end = ptr + data.stringRef.length;
+    // estimate capacity, might overestimate if many escapes
+    processed_value.reserve(m_data.string_ref.length);
+    const char *ptr = m_data.string_ref.start;
+    const char *end = ptr + m_data.string_ref.length;
 
     while (ptr < end) {
       if (*ptr == '\\') {
-        ptr++; // Consume backslash
+        ptr++; // consume backslash
         if (ptr >= end) {
-          // This indicates an error caught by lexer or malformed raw slice
-          // For robustness, stop processing here and add a literal backslash
+          // this indicates an error caught by lexer or malformed raw slice
+          // for robustness, stop processing here and add a literal backslash
           processed_value += '\\';
           break;
         }
@@ -534,16 +534,16 @@ public:
         case '0':
           processed_value += '\0';
           break;
-        // Add other escapes if supported by the language
+        // add other escapes if supported by the language
         default:
-          // Unknown escape was already checked by lexer.
-          // If it got here, maybe append the literal char after backslash?
+          // unknown escape was already checked by lexer.
+          // if it got here, maybe append the literal char after backslash?
           processed_value += *ptr;
           break;
         }
       } else {
-        // Should not encounter unescaped double quotes here as they delimit the
-        // raw slice. If found, it's an internal error. Add it literally for
+        // should not encounter unescaped double quotes here as they delimit the
+        // raw slice. if found, it's an internal error. add it literally for
         // now.
         processed_value += *ptr;
       }
@@ -552,98 +552,98 @@ public:
     return processed_value;
   }
 
-  // Print token to stream
+  // print token to stream
   void print(std::ostream &os) const {
     // cached map for keyword/symbol lookup
-    static std::map<TokenKind, std::string> simpleTokens;
-    if (simpleTokens.empty()) { // Initialize on first call
-      simpleTokens[TOK_EOF] = "<EOF>";
-      simpleTokens[TOK_IF] = "if";
-      simpleTokens[TOK_ELSE] = "else";
-      simpleTokens[TOK_FOR] = "for";
-      simpleTokens[TOK_IN] = "in";
-      simpleTokens[TOK_WHILE] = "while";
-      simpleTokens[TOK_BREAK] = "break";
-      simpleTokens[TOK_RETURN] = "return";
-      simpleTokens[TOK_INT] = "int";
-      simpleTokens[TOK_BOOL] = "bool";
-      simpleTokens[TOK_STRING] = "string";
-      simpleTokens[TOK_AND] = "and";
-      simpleTokens[TOK_OR] = "or";
-      simpleTokens[TOK_NOT] = "not";
-      simpleTokens[TOK_TRUE] = "true";
-      simpleTokens[TOK_FALSE] = "false";
-      simpleTokens[TOK_ASSIGN] = "=";
-      simpleTokens[TOK_PLUS] = "+";
-      simpleTokens[TOK_MINUS] = "-";
-      simpleTokens[TOK_DOUBLE_MINUS] = "--";
-      simpleTokens[TOK_TIMES] = "*";
-      simpleTokens[TOK_DIVIDE] = "/";
-      simpleTokens[TOK_MODULO] = "%";
-      simpleTokens[TOK_SHL] = "<<";
-      simpleTokens[TOK_SHR] = ">>";
-      simpleTokens[TOK_LESS] = "<";
-      simpleTokens[TOK_GREATER] = ">";
-      simpleTokens[TOK_LESS_EQ] = "<=";
-      simpleTokens[TOK_GREATER_EQ] = ">=";
-      simpleTokens[TOK_EQ] = "==";
-      simpleTokens[TOK_NOT_EQ] = "!=";
-      simpleTokens[TOK_LPAREN] = "(";
-      simpleTokens[TOK_RPAREN] = ")";
-      simpleTokens[TOK_LBRACE] = "{";
-      simpleTokens[TOK_RBRACE] = "}";
-      simpleTokens[TOK_LBRACKET] = "[";
-      simpleTokens[TOK_RBRACKET] = "]";
-      simpleTokens[TOK_SEMI] = ";";
-      simpleTokens[TOK_COLON] = ":";
-      simpleTokens[TOK_COMMA] = ",";
-      simpleTokens[TOK_DOT] = ".";
+    static std::map<TokenKind, std::string> simple_tokens;
+    if (simple_tokens.empty()) { // initialize on first call
+      simple_tokens[TokEof] = "<eof>";
+      simple_tokens[TokIf] = "if";
+      simple_tokens[TokElse] = "else";
+      simple_tokens[TokFor] = "for";
+      simple_tokens[TokIn] = "in";
+      simple_tokens[TokWhile] = "while";
+      simple_tokens[TokBreak] = "break";
+      simple_tokens[TokReturn] = "return";
+      simple_tokens[TokInt] = "int";
+      simple_tokens[TokBool] = "bool";
+      simple_tokens[TokString] = "string";
+      simple_tokens[TokAnd] = "and";
+      simple_tokens[TokOr] = "or";
+      simple_tokens[TokNot] = "not";
+      simple_tokens[TokTrue] = "true";
+      simple_tokens[TokFalse] = "false";
+      simple_tokens[TokAssign] = "=";
+      simple_tokens[TokPlus] = "+";
+      simple_tokens[TokMinus] = "-";
+      simple_tokens[TokDoubleMinus] = "--";
+      simple_tokens[TokTimes] = "*";
+      simple_tokens[TokDivide] = "/";
+      simple_tokens[TokModulo] = "%";
+      simple_tokens[TokShl] = "<<";
+      simple_tokens[TokShr] = ">>";
+      simple_tokens[TokLess] = "<";
+      simple_tokens[TokGreater] = ">";
+      simple_tokens[TokLessEq] = "<=";
+      simple_tokens[TokGreaterEq] = ">=";
+      simple_tokens[TokEq] = "==";
+      simple_tokens[TokNotEq] = "!=";
+      simple_tokens[TokLParen] = "(";
+      simple_tokens[TokRParen] = ")";
+      simple_tokens[TokLBrace] = "{";
+      simple_tokens[TokRBrace] = "}";
+      simple_tokens[TokLBracket] = "[";
+      simple_tokens[TokRBracket] = "]";
+      simple_tokens[TokSemi] = ";";
+      simple_tokens[TokColon] = ":";
+      simple_tokens[TokComma] = ",";
+      simple_tokens[TokDot] = ".";
     }
 
-    // Handle flag tokens
-    if (kind == TOK_FLAG_SHORT) {
+    // handle flag tokens
+    if (m_kind == TokFlagShort) {
       os << "-";
-      if (data.stringRef.start)
-        os.write(data.stringRef.start, data.stringRef.length);
+      if (m_data.string_ref.start)
+        os.write(m_data.string_ref.start, m_data.string_ref.length);
       else
         os << "<null_short_flag>";
       return;
     }
-    if (kind == TOK_FLAG_LONG) {
+    if (m_kind == TokFlagLong) {
       os << "--";
-      if (data.stringRef.start)
-        os.write(data.stringRef.start, data.stringRef.length);
+      if (m_data.string_ref.start)
+        os.write(m_data.string_ref.start, m_data.string_ref.length);
       else
         os << "<null_long_flag>";
       return;
     }
 
-    // Handle simple tokens first using the map
-    auto it = simpleTokens.find(kind);
-    if (it != simpleTokens.end()) {
+    // handle simple tokens first using the map
+    auto it = simple_tokens.find(m_kind);
+    if (it != simple_tokens.end()) {
       os << it->second;
       return;
     }
 
-    // Handle complex tokens
-    switch (kind) {
-    case TOK_ID: // Includes flags if using TOK_ID for them
-      if (data.stringRef.start) {
-        os.write(data.stringRef.start, data.stringRef.length);
+    // handle complex tokens
+    switch (m_kind) {
+    case TokId: // includes flags if using TokId for them
+      if (m_data.string_ref.start) {
+        os.write(m_data.string_ref.start, m_data.string_ref.length);
       } else {
-        os << "<null_id>"; // Should not happen
+        os << "<null_id>"; // should not happen
       }
       break;
-    case TOK_STR_LIT:
+    case TokStrLit:
       os << "\"";
-      // Print raw content, processing escapes for display purposes
-      if (data.stringRef.start) {
-        const char *ptr = data.stringRef.start;
-        const char *end = ptr + data.stringRef.length;
+      // print raw content, processing escapes for display purposes
+      if (m_data.string_ref.start) {
+        const char *ptr = m_data.string_ref.start;
+        const char *end = ptr + m_data.string_ref.length;
         while (ptr < end) {
           char c = *ptr;
           if (c == '\\') {
-            ptr++; // Look at the escaped char
+            ptr++; // look at the escaped char
             if (ptr < end) {
               switch (*ptr) {
               case 'n':
@@ -660,60 +660,60 @@ public:
                 break;
               case '"':
                 os << "\\\"";
-                break; // Show the escaped quote
+                break; // show the escaped quote
               case '0':
                 os << "\\0";
                 break;
-              default: // Print unknown escapes literally for representation
-                // Check if printable, otherwise use hex?
+              default: // print unknown escapes literally for representation
+                // check if printable, otherwise use hex?
                 if (std::isprint(static_cast<unsigned char>(*ptr))) {
                   os << '\\' << *ptr;
                 } else {
-                  // Simple fallback: print original backslash only
+                  // simple fallback: print original backslash only
                   os << '\\';
-                  // Decrement ptr so the non-printable char is handled below
+                  // decrement ptr so the non-printable char is handled below
                   ptr--;
                 }
                 break;
               }
             } else {
-              os << '\\'; // Dangling backslash at end of content
+              os << '\\'; // dangling backslash at end of content
             }
-          } else if (c == '"') { // Should not happen in raw content, but escape
+          } else if (c == '"') { // should not happen in raw content, but escape
                                  // if found
             os << "\\\"";
-          } else if (c == '\n') { // Represent newline visually
+          } else if (c == '\n') { // represent newline visually
             os << "\\n";
           } else if (c == '\r') {
             os << "\\r";
           } else if (c == '\t') {
             os << "\\t";
           } else if (std::isprint(static_cast<unsigned char>(c))) {
-            os << c; // Print printable chars directly
+            os << c; // print printable chars directly
           } else {
-            // non-printable chars, print Unicode replacement character
-            os << u8"\uFFFD";
+            // non-printable chars, print unicode replacement character
+            os << u8"\ufffd";
           }
           ptr++;
         }
       }
       os << "\"";
       break;
-    case TOK_INT_LIT:
+    case TokIntLit:
       // ... (integer printing logic remains the same) ...
-      if (data.intLit.base == HEX) {
+      if (m_data.int_lit.base == Hex) {
         std::ios_base::fmtflags original_flags = os.flags();
-        os << "0x" << std::hex << data.intLit.value;
+        os << "0x" << std::hex << m_data.int_lit.value;
         os.flags(original_flags);
-      } else if (data.intLit.base == BIN) {
+      } else if (m_data.int_lit.base == Bin) {
         os << "0b";
-        if (data.intLit.value == 0) {
+        if (m_data.int_lit.value == 0) {
           os << "0";
         } else {
-          // Simple binary printing for positive numbers up to 63 bits
+          // simple binary printing for positive numbers up to 63 bits
           bool leading_zeros = true;
           for (int i = 63; i >= 0; --i) {
-            if ((data.intLit.value >> i) & 1) {
+            if ((m_data.int_lit.value >> i) & 1) {
               leading_zeros = false;
               os << '1';
             } else if (!leading_zeros) {
@@ -721,153 +721,153 @@ public:
             }
           }
           if (leading_zeros)
-            os << '0'; // Should only happen for value 0, handled above
+            os << '0'; // should only happen for value 0, handled above
         }
-      } else // DEC
+      } else // dec
       {
-        os << data.intLit.value;
+        os << m_data.int_lit.value;
       }
       break;
-    case TOK_FLOAT_LIT: {
+    case TokFloatLit: {
       std::ios_base::fmtflags original_flags = os.flags();
       std::streamsize original_precision = os.precision();
 
-      // Preserve default float format unless scientific notation was used
-      if (data.floatLit.hasExponent) {
+      // preserve default float format unless scientific notation was used
+      if (m_data.float_lit.has_exponent) {
         os.setf(std::ios::scientific, std::ios::floatfield);
       }
       // else: use default formatting (often avoids trailing zeros vs fixed)
 
-      os << data.floatLit.value;
+      os << m_data.float_lit.value;
 
       os.flags(original_flags);
       os.precision(original_precision);
     } break;
     default: // note: should not happen if all kinds are covered
-      os << "<Unknown TokenKind: " << static_cast<int>(kind) << ">";
+      os << "<unknown token_kind: " << static_cast<int>(m_kind) << ">";
       break;
     }
   }
 
 private:
-  // Helper to copy data based on kind (used by copy ctor and assignment)
-  // This should be safe now, as it relies on the (trivial) copy/assignment
-  // of the member structs (IntLitData, FloatLitData, StringRef).
-  void copyData(const Token &other) {
-    switch (other.kind) {
-    case TOK_ID:
-    case TOK_STR_LIT:
-    case TOK_FLAG_SHORT:
-    case TOK_FLAG_LONG:
-      // Assign StringRef (member-wise copy)
-      data.stringRef = other.data.stringRef;
+  // helper to copy data based on kind (used by copy ctor and assignment)
+  // this should be safe now, as it relies on the (trivial) copy/assignment
+  // of the member structs (IntLit, FloatLit, StringRef).
+  void copy_data(const Token &other) {
+    switch (other.m_kind) {
+    case TokId:
+    case TokStrLit:
+    case TokFlagShort:
+    case TokFlagLong:
+      // assign StringRef (member-wise copy)
+      m_data.string_ref = other.m_data.string_ref;
       break;
-    case TOK_INT_LIT:
-      // Assign IntLitData struct (member-wise copy)
-      data.intLit = other.data.intLit;
+    case TokIntLit:
+      // assign IntLit struct (member-wise copy)
+      m_data.int_lit = other.m_data.int_lit;
       break;
-    case TOK_FLOAT_LIT:
-      // Assign FloatLitData struct (member-wise copy)
-      data.floatLit = other.data.floatLit;
+    case TokFloatLit:
+      // assign FloatLit struct (member-wise copy)
+      m_data.float_lit = other.m_data.float_lit;
       break;
     default:
-      // For simple tokens or TOK_EOF, the data doesn't strictly matter,
+      // for simple tokens or TokEof, the data doesn't strictly matter,
       // but copying something ensures defined state
-      data.intLit = other.data.intLit;
+      m_data.int_lit = other.m_data.int_lit;
       break;
     }
   }
 
-  TokenKind kind;
-  Span span;
-  TokenData data; // Union holding complex data (value types or StringRef)
+  TokenKind m_kind;
+  Span m_span;
+  TokenData m_data; // union holding complex data (value types or StringRef)
 };
 
-// Stream operator for Token
+// stream operator for token
 inline std::ostream &operator<<(std::ostream &os, const Token &token) {
   token.print(os);
   return os;
 }
 
-// Facility for tokenizing source code or input strings
+// facility for tokenizing source code or input strings
 class Lexer {
 public:
   /**
-   * Primary static function to tokenize source code.
-   * Takes a Source object and returns a vector of Tokens.
-   * Note: Source object must remain valid while Tokens are used.
+   * primary static function to tokenize source (input, code, etc.).
+   * takes a source object and returns a vector of tokens.
+   * note: source object must remain valid while tokens are used.
    */
-  static std::vector<Token> tokenize(const Source &source) {
+  static std::vector<Token> tokenize(const Src &source) {
     Lexer lexer(source);
-    lexer.lexAll();
-    return lexer.tokens;
+    lexer.lex_all();
+    return lexer.m_tokens;
   }
 
 private:
-  // Private constructor - only used internally by the static tokenize method
-  Lexer(const Source &source)
-      : iter(source.getIterator()), source_code_ptr(source.getCodePtr()) {
-    size_t estimated_tokens = source.getCode().size() / 5;
-    if (estimated_tokens > 10) { // Avoid tiny allocations
-      tokens.reserve(estimated_tokens);
+  // private constructor - only used internally by the static tokenize method
+  Lexer(const Src &source)
+      : m_iter(source.get_iterator()), m_input_ptr(source.get_code_ptr()) {
+    size_t estimated_tokens = source.get_code().size() / 5;
+    if (estimated_tokens > 10) { // avoid tiny allocations
+      m_tokens.reserve(estimated_tokens);
     }
   }
 
-  // Helper functions for character classification
-  // TODO: Using direct checks can be slightly faster if locale is not a
+  // helper functions for character classification
+  // todo: using direct checks can be slightly faster if locale is not a
   // concern..
-  static bool isAsciiDecDigit(char c) { return c >= '0' && c <= '9'; }
-  static bool isAsciiHexDigit(char c) {
+  static bool is_ascii_dec_digit(char c) { return c >= '0' && c <= '9'; }
+  static bool is_ascii_hex_digit(char c) {
     return (c >= '0' && c <= '9') || (c >= 'a' && c <= 'f') ||
-           (c >= 'A' && c <= 'F');
+           (c >= 'a' && c <= 'f');
   }
-  static bool isAsciiBinDigit(char c) { return c == '0' || c == '1'; }
-  // Using std::isalpha for broader identifier start definition (factors in
-  // locale) Sticking with std::isalpha unless pure ASCII is
+  static bool is_ascii_bin_digit(char c) { return c == '0' || c == '1'; }
+  // using std::isalpha for broader identifier start definition (factors in
+  // locale) sticking with std::isalpha unless pure ascii is
   // guaranteed/required.
-  static bool isIdentStart(char c) {
+  static bool is_ident_start(char c) {
     return std::isalpha(static_cast<unsigned char>(c)) || c == '$' ||
            c == '_' || c == '/';
   }
-  static bool isIdentCont(char c) {
-    return isIdentStart(c) || isAsciiDecDigit(c) || c == '.' || c == '/';
+  static bool is_ident_cont(char c) {
+    return is_ident_start(c) || is_ascii_dec_digit(c) || c == '.' || c == '/';
   }
 
-  // Combined digit check for lexNumber
-  static bool isDigitOrUnderscore(char c, Base base) {
+  // combined digit check for lex_number
+  static bool is_digit_or_underscore(char c, Radix base) {
     if (c == '_')
       return true;
     switch (base) {
-    case DEC:
-      return isAsciiDecDigit(c);
-    case HEX:
-      return isAsciiHexDigit(c);
-    case BIN:
-      return isAsciiBinDigit(c);
+    case Dec:
+      return is_ascii_dec_digit(c);
+    case Hex:
+      return is_ascii_hex_digit(c);
+    case Bin:
+      return is_ascii_bin_digit(c);
     default:
       return false;
     }
   }
 
-  // Core lexing driver function
-  void lexAll() {
-    tokens.clear(); // Clear if Lexer object was reused
+  // core lexing driver function
+  void lex_all() {
+    m_tokens.clear(); // clear if lexer object was reused
     while (true) {
-      eatWhitespaceAndComments();
-      Token token = nextToken();
-      tokens.push_back(token);
-      if (token.getKind() == TOK_EOF) {
+      eat_whitespace_and_comments();
+      Token token = next_token();
+      m_tokens.push_back(token);
+      if (token.get_kind() == TokEof) {
         break;
       }
     }
   }
 
-  // Skips over whitespace and single-line comments
-  void eatWhitespaceAndComments() {
+  // skips over whitespace and single-line comments
+  void eat_whitespace_and_comments() {
     while (true) {
-      char c = current(); // Cache current char
+      char c = current(); // cache current char
       switch (c) {
-      // Whitespace
+      // whitespace
       case ' ':
       case '\t':
       case '\n':
@@ -875,10 +875,10 @@ private:
         next();
         break;
 
-      // Comments (single line //)
+      // comments (single line //)
       case '/':
         if (peek() == '/') {
-          next2(); // Consume //
+          next2(); // consume //
           while (true) {
             char comm_c = current();
             if (comm_c == '\n' || comm_c == '\0')
@@ -886,160 +886,160 @@ private:
             next();
           }
         } else {
-          // Not a comment, maybe division
+          // not a comment, maybe division
           return;
         }
         break;
 
-      // End of whitespace/comment section
+      // end of whitespace/comment section
       default:
         return;
       }
     }
   }
 
-  // Lexes the next token from the input stream
-  Token nextToken() {
-    size_t start_pos = iter.position();
-    Location start_loc = iter.getLocation(); // Get location at start
+  // lexes the next token from the input stream
+  Token next_token() {
+    size_t start_pos = m_iter.position();
+    Location start_loc = m_iter.get_location(); // get location at start
 
     char c = current();
     switch (c) {
-    // EOF
+    // eof
     case '\0':
-      return Token(TOK_EOF, Span(start_pos, start_pos));
+      return Token(TokEof, Span(start_pos, start_pos));
 
-    // Single-character tokens that are unambiguous
+    // single-character tokens that are unambiguous
     case '+':
       next();
-      return Token(TOK_PLUS, Span(start_pos, iter.position()));
+      return Token(TokPlus, Span(start_pos, m_iter.position()));
     case '*':
       next();
-      return Token(TOK_TIMES, Span(start_pos, iter.position()));
+      return Token(TokTimes, Span(start_pos, m_iter.position()));
     case '%':
       next();
-      return Token(TOK_MODULO, Span(start_pos, iter.position()));
+      return Token(TokModulo, Span(start_pos, m_iter.position()));
     case '(':
       next();
-      return Token(TOK_LPAREN, Span(start_pos, iter.position()));
+      return Token(TokLParen, Span(start_pos, m_iter.position()));
     case ')':
       next();
-      return Token(TOK_RPAREN, Span(start_pos, iter.position()));
+      return Token(TokRParen, Span(start_pos, m_iter.position()));
     case '{':
       next();
-      return Token(TOK_LBRACE, Span(start_pos, iter.position()));
+      return Token(TokLBrace, Span(start_pos, m_iter.position()));
     case '}':
       next();
-      return Token(TOK_RBRACE, Span(start_pos, iter.position()));
+      return Token(TokRBrace, Span(start_pos, m_iter.position()));
     case '[':
       next();
-      return Token(TOK_LBRACKET, Span(start_pos, iter.position()));
+      return Token(TokLBracket, Span(start_pos, m_iter.position()));
     case ']':
       next();
-      return Token(TOK_RBRACKET, Span(start_pos, iter.position()));
+      return Token(TokRBracket, Span(start_pos, m_iter.position()));
     case ';':
       next();
-      return Token(TOK_SEMI, Span(start_pos, iter.position()));
+      return Token(TokSemi, Span(start_pos, m_iter.position()));
     case ':':
       next();
-      return Token(TOK_COLON, Span(start_pos, iter.position()));
+      return Token(TokColon, Span(start_pos, m_iter.position()));
     case ',':
       next();
-      return Token(TOK_COMMA, Span(start_pos, iter.position()));
+      return Token(TokComma, Span(start_pos, m_iter.position()));
 
-    // Potentially multi-character tokens
+    // potentially multi-character tokens
     case '-':
-      next();               // Consume '-'
-      if (current() == '-') // Check for second '-'
+      next();               // consume '-'
+      if (current() == '-') // check for second '-'
       {
-        next(); // Consume second '-'
-                // Check if it's followed by identifier start (long flag)
-        if (isIdentStart(current())) {
-          // Current position is *after* '--'. Start pos was before first '-'.
-          return lexLongFlag(start_pos); // Pass original start pos
+        next(); // consume second '-'
+                // check if it's followed by identifier start (long flag)
+        if (is_ident_start(current())) {
+          // current position is *after* '--'. start pos was before first '-'.
+          return lex_long_flag(start_pos); // pass original start pos
         }
-        // Check if just '--' (often end of options)
-        else if (!isIdentCont(current()) && !isAsciiDecDigit(current())) {
-          return Token(TOK_DOUBLE_MINUS, Span(start_pos, iter.position()));
+        // check if just '--' (often end of options)
+        else if (!is_ident_cont(current()) && !is_ascii_dec_digit(current())) {
+          return Token(TokDoubleMinus, Span(start_pos, m_iter.position()));
         } else {
-          // Case like "--1" or "--_" ? Treat as error? Or allow as part of long
-          // flag? Current lexLongFlag expects ident start. Let's treat as error
+          // case like "--1" or "--_" ? treat as error? or allow as part of long
+          // flag? current lex_long_flag expects ident start. let's treat as error
           // here.
-          throw LexError::invalidChar(
-              Location(start_loc.filename, start_loc.line,
-                       start_loc.col + 2)); // Error after '--'
+          throw LexError::invalid_char(
+              Location(start_loc.m_filename, start_loc.m_line,
+                       start_loc.m_col + 2)); // error after '--'
         }
       }
-      // Check if it's followed by identifier or digit (short flag)
-      else if (isIdentStart(current()) || isAsciiDecDigit(current())) {
-        // Current position is after '-'. Start pos was before '-'.
-        return lexShortFlag(start_pos); // Pass original start pos
+      // check if it's followed by identifier or digit (short flag)
+      else if (is_ident_start(current()) || is_ascii_dec_digit(current())) {
+        // current position is after '-'. start pos was before '-'.
+        return lex_short_flag(start_pos); // pass original start pos
       }
-      // Check for negative numbers (handled by lexNumber starting with digit)
+      // check for negative numbers (handled by lex_number starting with digit)
       // or just the minus operator
       else {
-        return Token(TOK_MINUS, Span(start_pos, iter.position()));
+        return Token(TokMinus, Span(start_pos, m_iter.position()));
       }
 
-    case '/': // Division, start of comment, or start of path-like identifier
-      // Comments are handled by eatWhitespaceAndComments
-      // Check if it starts a path-like identifier
-      if (isIdentCont(peek())) { // If '/' is followed by another identifier
+    case '/': // division, start of comment, or start of path-like identifier
+      // comments are handled by eat_whitespace_and_comments
+      // check if it starts a path-like identifier
+      if (is_ident_cont(peek())) { // if '/' is followed by another identifier
                                  // character...
-        return lexIdentifierOrKeyword(
+        return lex_identifier_or_keyword(
             start_pos); // ...treat it as the start of an identifier
       } else {
-        // Otherwise, it's the division operator
+        // otherwise, it's the division operator
         next();
-        return Token(TOK_DIVIDE, Span(start_pos, iter.position()));
+        return Token(TokDivide, Span(start_pos, m_iter.position()));
       }
 
     case '<':
       next();
       if (current() == '<') {
         next();
-        return Token(TOK_SHL, Span(start_pos, iter.position()));
+        return Token(TokShl, Span(start_pos, m_iter.position()));
       }
       if (current() == '=') {
         next();
-        return Token(TOK_LESS_EQ, Span(start_pos, iter.position()));
+        return Token(TokLessEq, Span(start_pos, m_iter.position()));
       }
-      return Token(TOK_LESS, Span(start_pos, iter.position()));
+      return Token(TokLess, Span(start_pos, m_iter.position()));
 
     case '>':
       next();
       if (current() == '>') {
         next();
-        return Token(TOK_SHR, Span(start_pos, iter.position()));
+        return Token(TokShr, Span(start_pos, m_iter.position()));
       }
       if (current() == '=') {
         next();
-        return Token(TOK_GREATER_EQ, Span(start_pos, iter.position()));
+        return Token(TokGreaterEq, Span(start_pos, m_iter.position()));
       }
-      return Token(TOK_GREATER, Span(start_pos, iter.position()));
+      return Token(TokGreater, Span(start_pos, m_iter.position()));
 
     case '=':
       next();
       if (current() == '=') {
         next();
-        return Token(TOK_EQ, Span(start_pos, iter.position()));
+        return Token(TokEq, Span(start_pos, m_iter.position()));
       }
-      return Token(TOK_ASSIGN, Span(start_pos, iter.position()));
+      return Token(TokAssign, Span(start_pos, m_iter.position()));
 
     case '!':
       next();
       if (current() == '=') {
         next();
-        return Token(TOK_NOT_EQ, Span(start_pos, iter.position()));
+        return Token(TokNotEq, Span(start_pos, m_iter.position()));
       }
-      // Assume '!' is TOK_NOT if not followed by '='
-      return Token(TOK_NOT, Span(start_pos, iter.position()));
+      // assume '!' is TokNot if not followed by '='
+      return Token(TokNot, Span(start_pos, m_iter.position()));
 
-    // String literals
+    // string literals
     case '"':
-      return lexString(start_pos); // Pass start position
+      return lex_string(start_pos); // pass start position
 
-    // Numbers (Integers or Floats)
+    // numbers (integers or floats)
     case '0':
     case '1':
     case '2':
@@ -1050,95 +1050,95 @@ private:
     case '7':
     case '8':
     case '9':
-      return lexNumber(start_pos); // Pass start position
+      return lex_number(start_pos); // pass start position
 
-    // Identifiers or Keywords
+    // identifiers or keywords
     default:
-      if (isIdentStart(c)) {
-        return lexIdentifierOrKeyword(start_pos); // Pass start position
+      if (is_ident_start(c)) {
+        return lex_identifier_or_keyword(start_pos); // pass start position
       }
-      // Unknown character
-      throw LexError::invalidChar(start_loc); // Use location at start of char
+      // unknown character
+      throw LexError::invalid_char(start_loc); // use location at start of char
     }
   }
 
-  // Lexes an identifier or a keyword
-  Token lexIdentifierOrKeyword(size_t start_pos) {
+  // lexes an identifier or a keyword
+  Token lex_identifier_or_keyword(size_t start_pos) {
     // start_pos is the position of the first character
     // current() is the first character
-    next(); // Consume the start character
+    next(); // consume the start character
 
-    while (isIdentCont(current())) {
+    while (is_ident_cont(current())) {
       next();
     }
-    size_t end_pos = iter.position();
+    size_t end_pos = m_iter.position();
     size_t length = end_pos - start_pos;
-    const char *id_start_ptr = source_code_ptr + start_pos;
+    const char *id_start_ptr = m_input_ptr + start_pos;
 
-    // Check if the identifier slice matches a keyword
-    // Keyword lookup: Using std::map requires temporary string.
-    // Optimization: Use a structure that can check char*/len directly.
-    // Simple linear scan for small keyword sets (pre-C++11 friendly):
-    struct Keyword {
+    // check if the identifier slice matches a keyword
+    // keyword lookup: using std::map requires temporary string.
+    // optimization: use a structure that can check char*/len directly.
+    // simple linear scan for small keyword sets (pre-c++11 friendly):
+    struct keyword {
       const char *name;
       size_t len;
       TokenKind kind;
     };
-    static const Keyword keywords[] = {
-        {"if", 2, TOK_IF},         {"else", 4, TOK_ELSE},
-        {"for", 3, TOK_FOR},       {"in", 2, TOK_IN},
-        {"while", 5, TOK_WHILE},   {"break", 5, TOK_BREAK},
-        {"return", 6, TOK_RETURN}, {"int", 3, TOK_INT},
-        {"bool", 4, TOK_BOOL},     {"string", 6, TOK_STRING},
-        {"and", 3, TOK_AND},       {"or", 2, TOK_OR},
-        {"not", 3, TOK_NOT},       {"true", 4, TOK_TRUE},
-        {"false", 5, TOK_FALSE},   {NULL, 0, TOK_EOF} // Sentinel
+    static const keyword keywords[] = {
+        {"if", 2, TokIf},         {"else", 4, TokElse},
+        {"for", 3, TokFor},       {"in", 2, TokIn},
+        {"while", 5, TokWhile},   {"break", 5, TokBreak},
+        {"return", 6, TokReturn}, {"int", 3, TokInt},
+        {"bool", 4, TokBool},     {"string", 6, TokString},
+        {"and", 3, TokAnd},       {"or", 2, TokOr},
+        {"not", 3, TokNot},       {"true", 4, TokTrue},
+        {"false", 5, TokFalse},   {nullptr, 0, TokEof} // sentinel
     };
 
-    for (int i = 0; keywords[i].name != NULL; ++i) {
+    for (int i = 0; keywords[i].name != nullptr; ++i) {
       if (keywords[i].len == length &&
           memcmp(id_start_ptr, keywords[i].name, length) == 0) {
         return Token(keywords[i].kind, Span(start_pos, end_pos));
       }
     }
 
-    // Not a keyword, it's an identifier
-    return Token::makeId(id_start_ptr, length, Span(start_pos, end_pos));
+    // not a keyword, it's an identifier
+    return Token::make_id(id_start_ptr, length, Span(start_pos, end_pos));
   }
 
-  // Lexes a string literal enclosed in double quotes
-  // Returns token with raw content slice (pointer/length between quotes)
-  Token lexString(size_t span_start) {
+  // lexes a string literal enclosed in double quotes
+  // returns token with raw content slice (pointer/length between quotes)
+  Token lex_string(size_t span_start) {
     // span_start is position of opening quote "
-    Location start_loc = iter.getLocation();    // Location of "
-    next();                                     // Consume the opening quote "
-    size_t content_start_pos = iter.position(); // Position after "
+    Location start_loc = m_iter.get_location();    // location of "
+    next();                                     // consume the opening quote "
+    size_t content_start_pos = m_iter.position(); // position after "
 
     while (true) {
-      Location char_loc = iter.getLocation(); // Location of current char
+      Location char_loc = m_iter.get_location(); // location of current char
       char c = current();
       if (c == '\0') {
-        // Error location: Ideally point to the opening quote or where EOF
+        // error location: ideally point to the opening quote or where eof
         // encountered
-        throw LexError::unclosedString(start_loc);
+        throw LexError::unclosed_string(start_loc);
       }
       if (c == '\n') {
-        // Strings cannot contain raw newlines (adjust if language allows)
-        throw LexError::unclosedString(char_loc); // Error at the newline
+        // strings cannot contain raw newlines (adjust if language allows)
+        throw LexError::unclosed_string(char_loc); // error at the newline
       }
       if (c == '"') {
-        break; // End of string content
+        break; // end of string content
       }
 
-      if (c == '\\') {                            // Escape sequence
-        Location escape_loc = iter.getLocation(); // Location of backslash
-        next();                                   // Consume backslash
+      if (c == '\\') {                            // escape sequence
+        Location escape_loc = m_iter.get_location(); // location of backslash
+        next();                                   // consume backslash
         char escaped_char = current();
         if (escaped_char == '\0' ||
-            escaped_char == '\n') { // Invalid state after backslash
-          throw LexError::unclosedString(escape_loc); // Error at the backslash
+            escaped_char == '\n') { // invalid state after backslash
+          throw LexError::unclosed_string(escape_loc); // error at the backslash
         }
-        // Validate escape sequence based on language rules
+        // validate escape sequence based on language rules
         switch (escaped_char) {
         case 'n':
         case 'r':
@@ -1146,335 +1146,335 @@ private:
         case '\\':
         case '"':
         case '0':
-          // Valid escapes in this language
+          // valid escapes in this language
           break;
-        // Add other valid escapes (e.g., \xHH, \uHHHH) if needed
+        // add other valid escapes (e.g., \x_hh, \u_hhhh) if needed
         default:
-          // Unknown escape sequence
-          throw LexError::unknownEscape(
-              iter.getLocation()); // Error at char after backslash
+          // unknown escape sequence
+          throw LexError::unknown_escape(
+              m_iter.get_location()); // error at char after backslash
         }
-        next(); // Consume the character after backslash
+        next(); // consume the character after backslash
       } else {
-        next(); // Consume regular character
+        next(); // consume regular character
       }
     }
 
-    size_t content_end_pos = iter.position(); // Position of closing quote "
-    next();                                   // Consume closing quote "
-    size_t span_end = iter.position();
+    size_t content_end_pos = m_iter.position(); // position of closing quote "
+    next();                                   // consume closing quote "
+    size_t span_end = m_iter.position();
 
-    const char *content_start_ptr = source_code_ptr + content_start_pos;
+    const char *content_start_ptr = m_input_ptr + content_start_pos;
     size_t content_length = content_end_pos - content_start_pos;
 
-    return Token::makeStrLit(content_start_ptr, content_length,
+    return Token::make_str_lit(content_start_ptr, content_length,
                              Span(span_start, span_end));
   }
 
-  // Lexes a number (integer or float)
-  Token lexNumber(size_t start_pos) {
+  // lexes a number (integer or float)
+  Token lex_number(size_t start_pos) {
     // start_pos is position of first digit
-    Location start_loc = iter.getLocation(); // Location of first digit
-    Base base = DEC;
+    Location start_loc = m_iter.get_location(); // location of first digit
+    Radix base = Dec;
     bool is_float = false;
     bool has_exponent = false;
 
-    // Use a temporary buffer for digits to pass to strtoll/strtod
-    // Avoids std::string allocation overhead in the common case.
-    // Max length: 64-bit int ~20 digits, double ~30 chars? Add
+    // use a temporary buffer for digits to pass to strtoll/strtod
+    // avoids std::string allocation overhead in the common case.
+    // max length: 64-bit int ~20 digits, double ~30 chars? add
     // prefixes/signs/etc.
-    char num_buffer[64]; // Should be sufficient for valid numbers
+    char num_buffer[64]; // should be sufficient for valid numbers
     int buffer_idx = 0;
     const int buffer_max_idx =
-        sizeof(num_buffer) - 1; // Leave space for null terminator
+        sizeof(num_buffer) - 1; // leave space for null terminator
 
-    auto addToBuffer = [&](char ch) {
+    auto add_to_buffer = [&](char ch) {
       if (buffer_idx < buffer_max_idx) {
         num_buffer[buffer_idx++] = ch;
       } else {
-        // Buffer overflow - indicates extremely long literal, likely out of
-        // range anyway Throw specific error? Or let range check handle it? Let
-        // range check handle it for now. Don't add more chars. Or, dynamically
-        // allocate a larger buffer if truly huge numbers needed? Stick to fixed
-        // buffer for pre-C++11 simplicity.
+        // buffer overflow - indicates extremely long literal, likely out of
+        // range anyway throw specific error? or let range check handle it? let
+        // range check handle it for now. don't add more chars. or, dynamically
+        // allocate a larger buffer if truly huge numbers needed? stick to fixed
+        // buffer for pre-c++11 simplicity.
       }
     };
 
-    // Check for base prefixes (0x, 0b)
+    // check for base prefixes (0x, 0b)
     if (current() == '0') {
-      addToBuffer('0');
-      next();             // Consume '0'
-      char p = current(); // Use current() after consuming '0'
-      if (p == 'x' || p == 'X') {
-        base = HEX;
-        addToBuffer(p);
-        next();                            // Consume x/X
-        if (!isAsciiHexDigit(current())) { // Check must follow prefix
-          throw LexError::incompleteInt(iter.getLocation());
+      add_to_buffer('0');
+      next();             // consume '0'
+      char p = current(); // use current() after consuming '0'
+      if (p == 'x' || p == 'x') {
+        base = Hex;
+        add_to_buffer(p);
+        next();                            // consume x/x
+        if (!is_ascii_hex_digit(current())) { // check must follow prefix
+          throw LexError::incomplete_int(m_iter.get_location());
         }
-      } else if (p == 'b' || p == 'B') {
-        base = BIN;
-        addToBuffer(p);
-        next();                            // Consume b/B
-        if (!isAsciiBinDigit(current())) { // Check must follow prefix
-          throw LexError::incompleteInt(iter.getLocation());
+      } else if (p == 'b' || p == 'b') {
+        base = Bin;
+        add_to_buffer(p);
+        next();                            // consume b/b
+        if (!is_ascii_bin_digit(current())) { // check must follow prefix
+          throw LexError::incomplete_int(m_iter.get_location());
         }
       }
-      // If just '0' followed by non-prefix, non-digit/non-dot/non-exp -> treat
+      // if just '0' followed by non-prefix, non-digit/non-dot/non-exp -> treat
       // as single 0
-      else if (!isAsciiDecDigit(p) && p != '.' && p != 'e' && p != 'E') {
-        num_buffer[buffer_idx] = '\0'; // Null-terminate
-        return Token::makeIntLit(0, DEC, Span(start_pos, iter.position()));
+      else if (!is_ascii_dec_digit(p) && p != '.' && p != 'e' && p != 'e') {
+        num_buffer[buffer_idx] = '\0'; // null-terminate
+        return Token::make_int_lit(0, Dec, Span(start_pos, m_iter.position()));
       }
-      // Allow '0' followed by octal digits if octal is supported (not
+      // allow '0' followed by octal digits if octal is supported (not
       // currently) else if (p >= '0' && p <= '7') { /* handle octal */ }
 
-      // Otherwise, continue parsing (might be 0.1, 0e1, or just 0123 in DEC)
+      // otherwise, continue parsing (might be 0.1, 0e1, or just 0123 in dec)
     }
 
-    // Parse the main part of the number (integer part for floats)
-    // Handles first digit if not '0' prefix case
-    while (isDigitOrUnderscore(current(), base)) {
-      // Need to add the first digit if it wasn't '0'
+    // parse the main part of the number (integer part for floats)
+    // handles first digit if not '0' prefix case
+    while (is_digit_or_underscore(current(), base)) {
+      // need to add the first digit if it wasn't '0'
       if (buffer_idx == 0 &&
           start_pos ==
-              iter.position() - 1) { // Add first digit if not already added
-        addToBuffer(source_code_ptr[start_pos]);
+              m_iter.position() - 1) { // add first digit if not already added
+        add_to_buffer(m_input_ptr[start_pos]);
       }
 
       if (current() != '_') {
-        addToBuffer(current());
+        add_to_buffer(current());
       }
       next();
     }
-    // Ensure first digit was added if loop didn't run (e.g., single digit
+    // ensure first digit was added if loop didn't run (e.g., single digit
     // number)
-    if (buffer_idx == 0 && start_pos == iter.position() - 1) {
-      addToBuffer(source_code_ptr[start_pos]);
+    if (buffer_idx == 0 && start_pos == m_iter.position() - 1) {
+      add_to_buffer(m_input_ptr[start_pos]);
     }
 
-    // Check for float components (only if base is DEC)
-    if (base == DEC) {
-      // Check for decimal point '.' followed by a digit
-      Location dot_loc = iter.getLocation();
+    // check for float components (only if base is dec)
+    if (base == Dec) {
+      // check for decimal point '.' followed by a digit
+      Location dot_loc = m_iter.get_location();
       if (current() == '.' &&
-          isAsciiDecDigit(peek())) // Must have digit after '.'
+          is_ascii_dec_digit(peek())) // must have digit after '.'
       {
         is_float = true;
-        addToBuffer('.'); // Add the decimal point
-        next();           // Consume .
+        add_to_buffer('.'); // add the decimal point
+        next();           // consume .
 
-        // Parse fractional part
-        while (isDigitOrUnderscore(current(), DEC)) {
+        // parse fractional part
+        while (is_digit_or_underscore(current(), Dec)) {
           if (current() != '_') {
-            addToBuffer(current());
+            add_to_buffer(current());
           }
           next();
         }
       }
-      // If only ".", treat number as integer and '.' as separate token (handled
-      // by nextToken)
+      // if only ".", treat number as integer and '.' as separate token (handled
+      // by next_token)
       else if (current() == '.') {
-        // Stop number parsing here. Let '.' be handled by nextToken.
+        // stop number parsing here. let '.' be handled by next_token.
       }
 
-      // Check for exponent e/E
-      Location exp_loc = iter.getLocation();
-      if (current() == 'e' || current() == 'E') {
+      // check for exponent e/e
+      Location exp_loc = m_iter.get_location();
+      if (current() == 'e' || current() == 'e') {
         char exp_peek = peek();
-        char exp_peek2 = peek2(); // Need peek2 from iterator
+        char exp_peek2 = peek2(); // need peek2 from iterator
 
-        // Valid exponent part requires digit, or sign followed by digit
-        if (isAsciiDecDigit(exp_peek) ||
+        // valid exponent part requires digit, or sign followed by digit
+        if (is_ascii_dec_digit(exp_peek) ||
             ((exp_peek == '+' || exp_peek == '-') &&
-             isAsciiDecDigit(exp_peek2))) {
-          is_float = true; // A number with exponent is always float
+             is_ascii_dec_digit(exp_peek2))) {
+          is_float = true; // a number with exponent is always float
           has_exponent = true;
-          addToBuffer(current()); // Add 'e' or 'E'
-          next();                 // Consume e/E
+          add_to_buffer(current()); // add 'e' or 'e'
+          next();                 // consume e/e
 
-          // Add exponent sign if present
+          // add exponent sign if present
           if (current() == '+' || current() == '-') {
-            addToBuffer(current());
+            add_to_buffer(current());
             next();
           }
 
-          // Must have at least one digit in exponent (already checked by outer
-          // condition) Parse exponent digits
-          while (isDigitOrUnderscore(current(), DEC)) {
+          // must have at least one digit in exponent (already checked by outer
+          // condition) parse exponent digits
+          while (is_digit_or_underscore(current(), Dec)) {
             if (current() != '_') {
-              addToBuffer(current());
+              add_to_buffer(current());
             }
             next();
           }
         }
-        // else: 'e'/'E' not followed by valid exponent chars, stop number
-        // parsing here. Let 'e' be handled as part of an identifier later if
+        // else: 'e'/'e' not followed by valid exponent chars, stop number
+        // parsing here. let 'e' be handled as part of an identifier later if
         // applicable.
       }
     }
-    // Cannot have float parts ('.', 'e', 'E') for hex/bin
-    else if (current() == '.' || current() == 'e' || current() == 'E') {
-      throw LexError::invalidChar(
-          iter.getLocation()); // e.g., 0xFF.0 is invalid
+    // cannot have float parts ('.', 'e', 'e') for hex/bin
+    else if (current() == '.' || current() == 'e' || current() == 'e') {
+      throw LexError::invalid_char(
+          m_iter.get_location()); // e.g., 0x_ff.0 is invalid
     }
 
-    // Null-terminate the buffer
+    // null-terminate the buffer
     num_buffer[buffer_idx] = '\0';
 
-    // Handle cases where only prefix was consumed (e.g., "0x" then EOF)
-    // Need to check if any digits were actually added after prefix
+    // handle cases where only prefix was consumed (e.g., "0x" then eof)
+    // need to check if any digits were actually added after prefix
     const char *digits_start = num_buffer;
-    if (base == HEX && buffer_idx <= 2) { // Only "0x"
-      throw LexError::incompleteInt(iter.getLocation());
+    if (base == Hex && buffer_idx <= 2) { // only "0x"
+      throw LexError::incomplete_int(m_iter.get_location());
     }
-    if (base == BIN && buffer_idx <= 2) { // Only "0b"
-      throw LexError::incompleteInt(iter.getLocation());
+    if (base == Bin && buffer_idx <= 2) { // only "0b"
+      throw LexError::incomplete_int(m_iter.get_location());
     }
-    // Point digits_start after prefix for conversion functions
-    if (base == HEX || base == BIN) {
-      digits_start += 2; // Skip "0x" or "0b"
+    // point digits_start after prefix for conversion functions
+    if (base == Hex || base == Bin) {
+      digits_start += 2; // skip "0x" or "0b"
     }
 
-    // Convert the accumulated digits string
-    size_t end_pos = iter.position();
+    // convert the accumulated digits string
+    size_t end_pos = m_iter.position();
     Span number_span(start_pos, end_pos);
     Location end_loc =
-        iter.getLocation(); // Use location at end for range errors
+        m_iter.get_location(); // use location at end for range errors
 
     if (is_float) {
       errno = 0;
       char *endptr;
-      // Use the full buffer content for strtod
+      // use the full buffer content for strtod
       double value = strtod(num_buffer, &endptr);
 
       if (errno == ERANGE) {
-        throw LexError::floatOutOfRange(end_loc);
+        throw LexError::float_out_of_range(end_loc);
       }
-      // Check if conversion consumed the part we expected
+      // check if conversion consumed the part we expected
       if (endptr != num_buffer + buffer_idx) {
-        // This might happen if invalid chars snuck in or buffer overflowed.
-        // Or if strtod stopped early unexpectedly.
-        throw LexError::invalidFloat(
-            start_loc); // Error likely relates to start/format
+        // this might happen if invalid chars snuck in or buffer overflowed.
+        // or if strtod stopped early unexpectedly.
+        throw LexError::invalid_float(
+            start_loc); // error likely relates to start/format
       }
 
-      return Token::makeFloatLit(value, has_exponent, number_span);
-    } else // It's an integer
+      return Token::make_float_lit(value, has_exponent, number_span);
+    } else // it's an integer
     {
       errno = 0;
       char *endptr;
-      int strtoll_base = (base == HEX) ? 16 : (base == BIN) ? 2 : 10;
+      int strtoll_base = (base == Hex) ? 16 : (base == Bin) ? 2 : 10;
 
-      // Handle empty digits_start case (e.g. "0x" where check above failed
+      // handle empty digits_start case (e.g. "0x" where check above failed
       // somehow)
       if (*digits_start == '\0') {
-        throw LexError::incompleteInt(start_loc);
+        throw LexError::incomplete_int(start_loc);
       }
 
-      // Use digits_start (skips 0x/0b if present)
+      // use digits_start (skips 0x/0b if present)
       long long value = strtoll(digits_start, &endptr, strtoll_base);
 
       if (errno == ERANGE) {
-        throw LexError::intOutOfRange(end_loc);
+        throw LexError::int_out_of_range(end_loc);
       }
 
-      // Check if conversion consumed the entire digits part we expected
-      // Calculate expected end pointer within the original buffer
+      // check if conversion consumed the entire digits part we expected
+      // calculate expected end pointer within the original buffer
       const char *expected_end_in_buffer = num_buffer + buffer_idx;
       if (endptr != expected_end_in_buffer) {
-        // Incomplete conversion likely means invalid chars (e.g., "0xFG")
-        // Or buffer overflow truncated valid digits?
-        // Use location where parsing stopped if possible, else start_loc.
-        // Finding exact failure point post-strtoll is hard. Use start_loc.
-        throw LexError::incompleteInt(start_loc);
+        // incomplete conversion likely means invalid chars (e.g., "0x_fg")
+        // or buffer overflow truncated valid digits?
+        // use location where parsing stopped if possible, else start_loc.
+        // finding exact failure point post-strtoll is hard. use start_loc.
+        throw LexError::incomplete_int(start_loc);
       }
 
-      return Token::makeIntLit(value, base, number_span);
+      return Token::make_int_lit(value, base, number_span);
     }
   }
 
-  // Lexes a short flag (e.g., -v, -f)
-  // Assumes called when current() is the char *after* '-'
-  Token lexShortFlag(size_t start_pos) // start_pos is the position of '-'
+  // lexes a short flag (e.g., -v, -f)
+  // assumes called when current() is the char *after* '-'
+  Token lex_short_flag(size_t start_pos) // start_pos is the position of '-'
   {
-    Location flag_char_loc = iter.getLocation(); // Loc of char after '-'
-    size_t content_start_pos = iter.position();  // Position of char after '-'
+    Location flag_char_loc = m_iter.get_location(); // loc of char after '-'
+    size_t content_start_pos = m_iter.position();  // position of char after '-'
 
-    // Read the flag content (alphanumeric sequence)
-    // Short flags are typically single char, but allow sequence for flexibility
-    // Adjust isIdentCont / isAsciiDecDigit if flags have different rules
-    while (isIdentCont(current()) || isAsciiDecDigit(current())) {
+    // read the flag content (alphanumeric sequence)
+    // short flags are typically single char, but allow sequence for flexibility
+    // adjust is_ident_cont / is_ascii_dec_digit if flags have different rules
+    while (is_ident_cont(current()) || is_ascii_dec_digit(current())) {
       next();
     }
-    size_t end_pos = iter.position();
+    size_t end_pos = m_iter.position();
     size_t length = end_pos - content_start_pos;
 
     if (length == 0) {
-      // This means '-' was followed by whitespace or EOF or symbol
-      // Treat as just TOK_MINUS, need to backtrack or handle in nextToken
-      // Revisit nextToken logic: it should return TOK_MINUS if '-' not followed
-      // by flag char For now, assume if we reach here, length > 0. If this
-      // error occurs, the logic in nextToken needs adjustment.
+      // this means '-' was followed by whitespace or eof or symbol
+      // treat as just TokMinus, need to backtrack or handle in next_token
+      // revisit next_token logic: it should return TokMinus if '-' not followed
+      // by flag char for now, assume if we reach here, length > 0. if this
+      // error occurs, the logic in next_token needs adjustment.
       throw std::runtime_error(
-          "Internal lexer error: lexShortFlag called incorrectly"); // Should
+          "internal lexer error: lex_short_flag called incorrectly"); // should
                                                                     // not
                                                                     // happen
     }
 
-    const char *flag_start_ptr = source_code_ptr + content_start_pos;
-    // Use makeFlag (which currently creates TOK_ID)
-    // The span should include the leading '-'
-    return Token::makeShortFlag(flag_start_ptr, length,
+    const char *flag_start_ptr = m_input_ptr + content_start_pos;
+    // use make_flag (which currently creates TokId)
+    // the span should include the leading '-'
+    return Token::make_short_flag(flag_start_ptr, length,
                                 Span(start_pos, end_pos));
   }
 
-  // Lexes a long flag (e.g., --version, --file)
-  // Assumes called when current() is the char *after* '--'
-  Token lexLongFlag(size_t start_pos) // start_pos is the position of first '-'
+  // lexes a long flag (e.g., --version, --file)
+  // assumes called when current() is the char *after* '--'
+  Token lex_long_flag(size_t start_pos) // start_pos is the position of first '-'
   {
-    Location name_start_loc = iter.getLocation(); // Loc of char after '--'
-    size_t name_start_pos = iter.position();      // Position of char after '--'
+    Location name_start_loc = m_iter.get_location(); // loc of char after '--'
+    size_t name_start_pos = m_iter.position();      // position of char after '--'
 
-    // Read the identifier part of the flag name
-    // Allow '-' within long flag names? e.g. --my-flag
-    // Current isIdentCont doesn't include '-', adjust if needed.
-    while (isIdentCont(current())) { // Add || current() == '-' if desired
+    // read the identifier part of the flag name
+    // allow '-' within long flag names? e.g. --my-flag
+    // current is_ident_cont doesn't include '-', adjust if needed.
+    while (is_ident_cont(current())) { // add || current() == '-' if desired
       next();
     }
-    size_t name_end_pos = iter.position();
+    size_t name_end_pos = m_iter.position();
     size_t name_length = name_end_pos - name_start_pos;
 
     if (name_length == 0) {
-      // Should not happen if called correctly from nextToken (checked for
-      // isIdentStart)
-      throw LexError::invalidChar(name_start_loc); // Error started after '--'
+      // should not happen if called correctly from next_token (checked for
+      // is_ident_start)
+      throw LexError::invalid_char(name_start_loc); // error started after '--'
     }
 
-    const char *name_start_ptr = source_code_ptr + name_start_pos;
+    const char *name_start_ptr = m_input_ptr + name_start_pos;
 
-    // Check for =value attached?
-    // Current design: Lexer returns only the flag name token.
-    // Parser handles the '=' and subsequent value token if present.
-    // So, just return the flag token based on the name.
-    // The span should include the leading '--'
-    return Token::makeLongFlag(name_start_ptr, name_length,
+    // check for =value attached?
+    // current design: lexer returns only the flag name token.
+    // parser handles the '=' and subsequent value token if present.
+    // so, just return the flag token based on the name.
+    // the span should include the leading '--'
+    return Token::make_long_flag(name_start_ptr, name_length,
                                Span(start_pos, name_end_pos));
   }
 
-  // Character navigation helpers (inline wrappers around iterator)
-  // Could be made inline if compiler doesn't already do it.
-  char current() const { return iter.current(); }
-  char peek() const { return iter.peek(); }
-  char peek2() const { return iter.peek2(); } // Use iterator's peek2
+  // character navigation helpers (inline wrappers around iterator)
+  // could be made inline if compiler doesn't already do it.
+  char current() const { return m_iter.current(); }
+  char peek() const { return m_iter.peek(); }
+  char peek2() const { return m_iter.peek2(); } // use iterator's peek2
 
-  void next() { iter.next(); }
-  void next2() { iter.next2(); }
+  void next() { m_iter.next(); }
+  void next2() { m_iter.next2(); }
 
-  // State
-  SourceIterator iter;         // Iterator over the source code
-  const char *source_code_ptr; // Pointer to start of source data
-  std::vector<Token> tokens;   // Vector to store the generated tokens
+  // state
+  InputIter m_iter;         // iterator over the input
+  const char *m_input_ptr;    // pointer to start of the input
+  std::vector<Token> m_tokens;  // vector to store the generated tokens
 };
 
 } // namespace lexer

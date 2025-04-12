@@ -42,157 +42,157 @@ namespace pparser {
 class Command;
 class ArgumentParser;
 class ParseResult;
-struct ArgValueImpl;
+struct ArgValue;
 
-struct ArgValueImpl {
-  enum ArgValueKind {
-    AVK_NONE,
-    AVK_BOOL,
-    AVK_INT,
-    AVK_DOUBLE,
-    AVK_STRING,
-    AVK_STRING_VECTOR
+struct ArgValue {
+  enum arg_value_kind {
+    avk_none,
+    avk_bool,
+    avk_int,
+    avk_double,
+    avk_string,
+    avk_string_vector
   };
 
-  ArgValueKind kind;
+  arg_value_kind kind;
   union {
     bool b;
-    long long i; // Assuming long long is available as extension, else use long
+    long long i; // assuming long long is available as extension, else use long
     double d;
-    std::string *s; // Pointer for backwards compatibility for unions in
-                    // pre-C++11 environments
-    std::vector<std::string> *sv; // Pointer for the same reason
+    std::string *s; // pointer for backwards compatibility for unions in
+                    // pre-c++11 environments
+    std::vector<std::string> *sv; // pointer for the same reason
   } value;
 
-  // Default constructor
-  ArgValueImpl() : kind(AVK_NONE) {
-    // Initialize one member to avoid undefined state, though not strictly
-    // necessary for NONE
+  // default constructor
+  ArgValue() : kind(avk_none) {
+    // initialize one member to avoid undefined state, though not strictly
+    // necessary for none
     value.i = 0;
   }
 
-  explicit ArgValueImpl(bool val) : kind(AVK_BOOL) { value.b = val; }
-  explicit ArgValueImpl(long long val) : kind(AVK_INT) { value.i = val; }
-  explicit ArgValueImpl(double val) : kind(AVK_DOUBLE) { value.d = val; }
+  explicit ArgValue(bool val) : kind(avk_bool) { value.b = val; }
+  explicit ArgValue(long long val) : kind(avk_int) { value.i = val; }
+  explicit ArgValue(double val) : kind(avk_double) { value.d = val; }
   // note: takes ownership of new string
-  explicit ArgValueImpl(const std::string &val) : kind(AVK_STRING) {
+  explicit ArgValue(const std::string &val) : kind(avk_string) {
     value.s = new std::string(val);
   }
   // note: takes ownership of new vector
-  explicit ArgValueImpl(const std::vector<std::string> &val)
-      : kind(AVK_STRING_VECTOR) {
+  explicit ArgValue(const std::vector<std::string> &val)
+      : kind(avk_string_vector) {
     value.sv = new std::vector<std::string>(val);
   }
 
-  // Cleanup pointer members
-  ~ArgValueImpl() { clear(); }
+  // cleanup pointer members
+  ~ArgValue() { clear(); }
 
-  ArgValueImpl(const ArgValueImpl &other) : kind(AVK_NONE) { copyFrom(other); }
-  ArgValueImpl &operator=(const ArgValueImpl &other) {
+  ArgValue(const ArgValue &other) : kind(avk_none) { copy_from(other); }
+  ArgValue &operator=(const ArgValue &other) {
     if (this != &other) {
       clear();
-      copyFrom(other);
+      copy_from(other);
     }
     return *this;
   }
 
-  // Helper to clear existing data (delete pointers)
+  // helper to clear existing data (delete pointers)
   void clear() {
-    if (kind == AVK_STRING) {
+    if (kind == avk_string) {
       delete value.s;
       value.s = nullptr;
-    } else if (kind == AVK_STRING_VECTOR) {
+    } else if (kind == avk_string_vector) {
       delete value.sv;
       value.sv = nullptr;
     }
-    kind = AVK_NONE;
+    kind = avk_none;
     value.i = 0;
   }
 
-  // Helper for copy construction/assignment
-  void copyFrom(const ArgValueImpl &other) {
+  // helper for copy construction/assignment
+  void copy_from(const ArgValue &other) {
     kind = other.kind;
     switch (kind) {
-    case AVK_NONE:
+    case avk_none:
       value.i = 0;
       break;
-    case AVK_BOOL:
+    case avk_bool:
       value.b = other.value.b;
       break;
-    case AVK_INT:
+    case avk_int:
       value.i = other.value.i;
       break;
-    case AVK_DOUBLE:
+    case avk_double:
       value.d = other.value.d;
       break;
-    case AVK_STRING:
+    case avk_string:
       value.s = other.value.s ? new std::string(*other.value.s) : nullptr;
       break;
-    case AVK_STRING_VECTOR:
+    case avk_string_vector:
       value.sv = other.value.sv ? new std::vector<std::string>(*other.value.sv)
                                 : nullptr;
       break;
     }
   }
 
-  // Type Checkers
-  bool isNone() const { return kind == AVK_NONE; }
-  bool isBool() const { return kind == AVK_BOOL; }
-  bool isInt() const { return kind == AVK_INT; }
-  bool isDouble() const { return kind == AVK_DOUBLE; }
-  bool isString() const { return kind == AVK_STRING; }
-  bool isStringVector() const { return kind == AVK_STRING_VECTOR; }
+  // type checkers
+  bool is_none() const { return kind == avk_none; }
+  bool is_bool() const { return kind == avk_bool; }
+  bool is_int() const { return kind == avk_int; }
+  bool is_double() const { return kind == avk_double; }
+  bool is_string() const { return kind == avk_string; }
+  bool is_string_vector() const { return kind == avk_string_vector; }
 
-  // Getters (unsafe, check type first or use safe getters below)
-  bool getBoolUnsafe() const { return value.b; }
-  long long getIntUnsafe() const { return value.i; }
-  double getDoubleUnsafe() const { return value.d; }
-  const std::string &getStringUnsafe() const { return *value.s; }
-  const std::vector<std::string> &getStringVectorUnsafe() const {
+  // getters (unsafe, check type first or use safe getters below)
+  bool get_bool_unsafe() const { return value.b; }
+  long long get_int_unsafe() const { return value.i; }
+  double get_double_unsafe() const { return value.d; }
+  const std::string &get_string_unsafe() const { return *value.s; }
+  const std::vector<std::string> &get_string_vector_unsafe() const {
     return *value.sv;
   }
-  std::string *getStringPtrUnsafe() const { return value.s; }
-  std::vector<std::string> *getStringVectorPtrUnsafe() const {
+  std::string *get_string_ptr_unsafe() const { return value.s; }
+  std::vector<std::string> *get_string_vector_ptr_unsafe() const {
     return value.sv;
   }
 
-  // Safe getters (returns a pointer; nullptr if wrong type/unset)
-  const bool *getBool() const { return kind == AVK_BOOL ? &value.b : nullptr; }
-  const long long *getInt() const {
-    return kind == AVK_INT ? &value.i : nullptr;
+  // safe getters (returns a pointer; nullptr if wrong type/unset)
+  const bool *get_bool() const { return kind == avk_bool ? &value.b : nullptr; }
+  const long long *get_int() const {
+    return kind == avk_int ? &value.i : nullptr;
   }
-  const double *getDouble() const {
-    return kind == AVK_DOUBLE ? &value.d : nullptr;
+  const double *get_double() const {
+    return kind == avk_double ? &value.d : nullptr;
   }
-  const std::string *getString() const {
-    return kind == AVK_STRING ? value.s : nullptr;
+  const std::string *get_string() const {
+    return kind == avk_string ? value.s : nullptr;
   }
-  const std::vector<std::string> *getStringVector() const {
-    return kind == AVK_STRING_VECTOR ? value.sv : nullptr;
+  const std::vector<std::string> *get_string_vector() const {
+    return kind == avk_string_vector ? value.sv : nullptr;
   }
-  std::string getStringValue(const std::string &defaultVal = "") const {
-    const std::string *ptr = getString();
-    return ptr ? *ptr : defaultVal;
+  std::string get_string_value(const std::string &default_val = "") const {
+    const std::string *ptr = get_string();
+    return ptr ? *ptr : default_val;
   }
 
   void print(std::ostream &os) const {
     switch (kind) {
-    case AVK_NONE:
+    case avk_none:
       os << "<none>";
       break;
-    case AVK_BOOL:
+    case avk_bool:
       os << (value.b ? "true" : "false");
       break;
-    case AVK_INT:
+    case avk_int:
       os << value.i;
       break;
-    case AVK_DOUBLE:
+    case avk_double:
       os << value.d;
       break;
-    case AVK_STRING:
+    case avk_string:
       os << (value.s ? *value.s : "<invalid_string>");
       break;
-    case AVK_STRING_VECTOR: {
+    case avk_string_vector: {
       os << "[";
       if (value.sv) {
         for (size_t j = 0; j < value.sv->size(); ++j) {
@@ -206,47 +206,45 @@ struct ArgValueImpl {
   }
 };
 
-typedef ArgValueImpl ArgValue;
-
 enum ArgType {
-  ARGTYPE_FLAG,      // Boolean switch (e.g., --verbose)
-  ARGTYPE_SINGLE,    // Expects a single value (e.g., --output file.txt)
-  ARGTYPE_MULTIPLE,  // Expects one or more values (e.g., --input a.txt b.txt)
-  ARGTYPE_POSITIONAL // Argument determined by position
+  argtype_flag,      // boolean switch (e.g., --verbose)
+  argtype_single,    // expects a single value (e.g., --output file.txt)
+  argtype_multiple,  // expects one or more values (e.g., --input a.txt b.txt)
+  argtype_positional // argument determined by position
 };
 
 struct ArgumentDef {
-  std::string name;      // Internal name to access the parsed value
-  std::string shortName; // Short flag (e.g., "-f") - Optional
-  std::string longName;  // Long flag (e.g., "--file") - Optional
-  std::string help;      // Help text description
-  ArgType type;          // Type of argument (flag, single, etc.)
-  bool required;         // Is this argument mandatory?
-  ArgValue defaultValue; // Default value if argument is not provided
-  bool isHelpFlag;       // Internal flag to identify the help argument
+  std::string name;      // internal name to access the parsed value
+  std::string short_name; // short flag (e.g., "-f") - optional
+  std::string long_name;  // long flag (e.g., "--file") - optional
+  std::string help;      // help text description
+  ArgType type;          // type of argument (flag, single, etc.)
+  bool required;         // is this argument mandatory?
+  ArgValue default_value; // default value if argument is not provided
+  bool is_help_flag;       // internal flag to identify the help argument
 
   ArgumentDef(std::string n, std::string sn, std::string ln, std::string h,
-              ArgType t = ARGTYPE_FLAG, bool req = false,
-              ArgValue defVal = ArgValue(), bool helpFlag = false)
-      : name(n), shortName(sn), longName(ln), help(h), type(t), required(req),
-        defaultValue(defVal), isHelpFlag(helpFlag) {}
+              ArgType t = argtype_flag, bool req = false,
+              ArgValue def_val = ArgValue(), bool help_flag = false)
+      : name(n), short_name(sn), long_name(ln), help(h), type(t), required(req),
+        default_value(def_val), is_help_flag(help_flag) {}
 
   ArgumentDef()
-      : type(ARGTYPE_FLAG), required(false), isHelpFlag(false) {}
-  // Get display name (e.g., "-f, --file")
-  std::string getDisplayName() const {
+      : type(argtype_flag), required(false), is_help_flag(false) {}
+  // get display name (e.g., "-f, --file")
+  std::string get_display_name() const {
     std::string display;
-    if (!shortName.empty()) {
-      display += shortName;
+    if (!short_name.empty()) {
+      display += short_name;
     }
-    if (!longName.empty()) {
+    if (!long_name.empty()) {
       if (!display.empty())
         display += ", ";
-      display += longName;
+      display += long_name;
     }
-    if (type != ARGTYPE_FLAG && type != ARGTYPE_POSITIONAL) {
+    if (type != argtype_flag && type != argtype_positional) {
       display += " <value>";
-      if (type == ARGTYPE_MULTIPLE) {
+      if (type == argtype_multiple) {
         display += "...";
       }
     }
@@ -254,522 +252,522 @@ struct ArgumentDef {
   }
 };
 
-// Stores the outcome of the parsing process
+// stores the outcome of the parsing process
 class ParseResult {
 public:
-  enum PParserStatus {
-    PPARSER_STATUS_SUCCESS,
-    PPARSER_STATUS_HELP_REQUESTED,
-    PPARSER_STATUS_PARSE_ERROR
+  enum ParserStatus {
+    ParserStatus_Success,
+    ParserStatus_HelpRequested,
+    ParserStatus_ParseError
   };
 
-  PParserStatus status;     // No default initializer
-  int exitCode;             // Exit code returned by handler or set by parser
-  std::string errorMessage; // Error message if status is PARSE_ERROR
+  ParserStatus status;     // no default initializer
+  int exit_code;             // exit code returned by handler or set by parser
+  std::string error_message; // error message if status is parse_error
   std::string
-      commandPath; // Full path of the executed command (e.g., "git remote add")
+      command_path; // full path of the executed command (e.g., "git remote add")
 
-  // Map storing parsed keyword argument values (name -> value)
-  std::map<std::string, ArgValue> keywordValues;
-  // Vector storing parsed positional argument values in order
-  std::vector<ArgValue> positionalValues;
+  // map storing parsed keyword argument values (name -> value)
+  std::map<std::string, ArgValue> keyword_values;
+  // vector storing parsed positional argument values in order
+  std::vector<ArgValue> positional_values;
 
-  ParseResult() : status(PPARSER_STATUS_SUCCESS), exitCode(0) {}
+  ParseResult() : status(ParserStatus_Success), exit_code(0) {}
 
-  // Check if a keyword arg was provided (doesn't check type)
-  bool hasKeywordArg(const std::string &name) const {
-    return keywordValues.find(name) != keywordValues.end();
+  // check if a keyword arg was provided (doesn't check type)
+  bool has_kw_arg(const std::string &name) const {
+    return keyword_values.find(name) != keyword_values.end();
   }
 
-  // Getters returning pointers, nullptr if missing or wrong type
-  const bool *getKeywordArgBool(const std::string &name) const {
+  // getters returning pointers, nullptr if missing or wrong type
+  const bool *get_kw_arg_bool(const std::string &name) const {
     std::map<std::string, ArgValue>::const_iterator it =
-        keywordValues.find(name);
-    if (it != keywordValues.end()) {
-      return it->second.getBool();
+        keyword_values.find(name);
+    if (it != keyword_values.end()) {
+      return it->second.get_bool();
     }
     return nullptr;
   }
 
-  const long long *getKeywordArgInt(const std::string &name) const {
+  const long long *get_kw_arg_int(const std::string &name) const {
     std::map<std::string, ArgValue>::const_iterator it =
-        keywordValues.find(name);
-    if (it != keywordValues.end()) {
-      return it->second.getInt();
+        keyword_values.find(name);
+    if (it != keyword_values.end()) {
+      return it->second.get_int();
     }
     return nullptr;
   }
 
-  const double *getKeywordArgDouble(const std::string &name) const {
+  const double *get_kw_arg_double(const std::string &name) const {
     std::map<std::string, ArgValue>::const_iterator it =
-        keywordValues.find(name);
-    if (it != keywordValues.end()) {
-      return it->second.getDouble();
+        keyword_values.find(name);
+    if (it != keyword_values.end()) {
+      return it->second.get_double();
     }
     return nullptr;
   }
 
-  const std::string *getKeywordArgString(const std::string &name) const {
+  const std::string *get_kw_arg_string(const std::string &name) const {
     std::map<std::string, ArgValue>::const_iterator it =
-        keywordValues.find(name);
-    if (it != keywordValues.end()) {
-      return it->second.getString();
+        keyword_values.find(name);
+    if (it != keyword_values.end()) {
+      return it->second.get_string();
     }
     return nullptr;
   }
 
   const std::vector<std::string> *
-  getKeywordArgStringVector(const std::string &name) const {
+  get_kw_arg_list(const std::string &name) const {
     std::map<std::string, ArgValue>::const_iterator it =
-        keywordValues.find(name);
-    if (it != keywordValues.end()) {
-      return it->second.getStringVector();
+        keyword_values.find(name);
+    if (it != keyword_values.end()) {
+      return it->second.get_string_vector();
     }
     return nullptr;
   }
 
-  // Getters returning value or a default if missing/wrong type
-  bool getKeywordArgBoolOrDefault(const std::string &name,
-                                  bool defaultValue = false) const {
-    const bool *ptr = getKeywordArgBool(name);
-    return ptr ? *ptr : defaultValue;
+  // getters returning value or a default if missing/wrong type
+  bool find_kw_arg_bool(const std::string &name,
+                                  bool default_value = false) const {
+    const bool *ptr = get_kw_arg_bool(name);
+    return ptr ? *ptr : default_value;
   }
 
-  long long getKeywordArgIntOrDefault(const std::string &name,
-                                      long long defaultValue = 0) const {
-    const long long *ptr = getKeywordArgInt(name);
-    return ptr ? *ptr : defaultValue;
+  long long find_kw_arg_int(const std::string &name,
+                                      long long default_value = 0) const {
+    const long long *ptr = get_kw_arg_int(name);
+    return ptr ? *ptr : default_value;
   }
 
-  double getKeywordArgDoubleOrDefault(const std::string &name,
-                                      double defaultValue = 0.0) const {
-    const double *ptr = getKeywordArgDouble(name);
-    return ptr ? *ptr : defaultValue;
+  double find_kw_arg_double(const std::string &name,
+                                      double default_value = 0.0) const {
+    const double *ptr = get_kw_arg_double(name);
+    return ptr ? *ptr : default_value;
   }
 
   std::string
-  getKeywordArgStringOrDefault(const std::string &name,
-                               const std::string &defaultValue = "") const {
+  find_kw_arg_string(const std::string &name,
+                               const std::string &default_value = "") const {
     std::map<std::string, ArgValue>::const_iterator it =
-        keywordValues.find(name);
-    if (it != keywordValues.end()) {
-      return it->second.getStringValue(defaultValue);
+        keyword_values.find(name);
+    if (it != keyword_values.end()) {
+      return it->second.get_string_value(default_value);
     }
-    return defaultValue;
+    return default_value;
   }
 
-  // Returns a copy of the vector or an empty vector as default
+  // returns a copy of the vector or an empty vector as default
   std::vector<std::string>
-  getKeywordArgStringVectorOrDefault(const std::string &name) const {
-    const std::vector<std::string> *ptr = getKeywordArgStringVector(name);
+  find_kw_arg_list(const std::string &name) const {
+    const std::vector<std::string> *ptr = get_kw_arg_list(name);
     return ptr ? *ptr : std::vector<std::string>();
   }
 
-  // Getters for positional args by index
-  const bool *getPositionalArgBool(size_t index) const {
-    if (index < positionalValues.size()) {
-      return positionalValues[index].getBool();
+  // getters for positional args by index
+  const bool *get_pos_arg_bool(size_t index) const {
+    if (index < positional_values.size()) {
+      return positional_values[index].get_bool();
     }
     return nullptr;
   }
-  const long long *getPositionalArgInt(size_t index) const {
-    if (index < positionalValues.size()) {
-      return positionalValues[index].getInt();
+  const long long *get_pos_arg_int(size_t index) const {
+    if (index < positional_values.size()) {
+      return positional_values[index].get_int();
     }
     return nullptr;
   }
-  const double *getPositionalArgDouble(size_t index) const {
-    if (index < positionalValues.size()) {
-      return positionalValues[index].getDouble();
+  const double *get_pos_arg_double(size_t index) const {
+    if (index < positional_values.size()) {
+      return positional_values[index].get_double();
     }
     return nullptr;
   }
-  const std::string *getPositionalArgString(size_t index) const {
-    if (index < positionalValues.size()) {
-      return positionalValues[index].getString();
+  const std::string *get_pos_arg_string(size_t index) const {
+    if (index < positional_values.size()) {
+      return positional_values[index].get_string();
     }
     return nullptr;
   }
   const std::vector<std::string> *
-  getPositionalArgStringVector(size_t index) const {
-    if (index < positionalValues.size()) {
-      return positionalValues[index].getStringVector();
+  get_pos_arg_list(size_t index) const {
+    if (index < positional_values.size()) {
+      return positional_values[index].get_string_vector();
     }
     return nullptr;
   }
 };
 
-// Represents a command or subcommand with its arguments
+// represents a command or subcommand with its arguments
 class Command : public std::enable_shared_from_this<Command> {
 public:
   typedef int (*CommandHandler)(const ParseResult &result);
 
   Command(std::string name, std::string help)
-      : name_(name), help_(help), handler_(nullptr) {
-    ensureHelpArgument();
+      : m_name(name), m_help(help), m_handler(nullptr) {
+    ensure_help_argument();
   }
 
-  // Destructor to clean up subcommand pointers
-  ~Command() { subcommands_.clear(); }
+  // destructor to clean up subcommand pointers
+  ~Command() { m_commands.clear(); }
 
-  // Add a keyword/option argument (e.g., --file, -f)
-  Command &addKeywordArg(std::string name, std::string shortName,
-                         std::string longName, std::string help,
-                         ArgType type = ARGTYPE_FLAG, bool required = false,
-                         ArgValue defaultValue = ArgValue()) {
-    // Prevent adding another argument named "help" or starting with "no_"
+  // add a keyword/option argument (e.g., --file, -f)
+  Command &add_keyword_arg(std::string name, std::string short_name,
+                         std::string long_name, std::string help,
+                         ArgType type = argtype_flag, bool required = false,
+                         ArgValue default_value = ArgValue()) {
+    // prevent adding another argument named "help" or starting with "no_"
     if (name == "help") {
       throw std::invalid_argument(
-          "Argument name 'help' is reserved for the automatic help flag.");
+          "argument name 'help' is reserved for the automatic help flag.");
     }
     if (name.rfind("no_", 0) == 0) {
        throw std::invalid_argument(
-          "Argument name cannot start with 'no_'. This prefix is reserved for automatic negation flags.");
+          "argument name cannot start with 'no_'. this prefix is reserved for automatic negation flags.");
     }
-    // Ensure long name doesn't start with --no- if provided manually
-    if (!longName.empty() && longName.rfind("--no-", 0) == 0) {
+    // ensure long name doesn't start with --no- if provided manually
+    if (!long_name.empty() && long_name.rfind("--no-", 0) == 0) {
          throw std::invalid_argument(
-          "Long name cannot start with '--no-'. This prefix is reserved for automatic negation flags.");
+          "long name cannot start with '--no-'. this prefix is reserved for automatic negation flags.");
     }
 
 
-    // If it's a flag and the default value is still the initial AVK_NONE,
-    // set the actual default to false. Otherwise, use the provided default.
-    ArgValue finalDefaultValue = defaultValue;
-    if (type == ARGTYPE_FLAG && defaultValue.isNone()) {
-      finalDefaultValue = ArgValue(false);
+    // if it's a flag and the default value is still the initial avk_none,
+    // set the actual default to false. otherwise, use the provided default.
+    ArgValue final_default_value = default_value;
+    if (type == argtype_flag && default_value.is_none()) {
+      final_default_value = ArgValue(false);
     }
 
-    // Ensure the new keyword argument name is unique
+    // ensure the new keyword argument name is unique
     auto it = std::find_if(
-        keywordArgs_.begin(), keywordArgs_.end(),
+        m_kw_args.begin(), m_kw_args.end(),
         [&name](const ArgumentDef &arg) { return arg.name == name; });
-    if (it != keywordArgs_.end()) {
-      throw std::invalid_argument("Argument name '" + name + "' already exists.");
+    if (it != m_kw_args.end()) {
+      throw std::invalid_argument("argument name '" + name + "' already exists.");
     }
-    // Ensure short/long names are unique across all args (including potential auto-generated ones)
-    for(const auto& existingArg : keywordArgs_) {
-        if (!shortName.empty() && existingArg.shortName == shortName) {
-             throw std::invalid_argument("Short name '" + shortName + "' already exists.");
+    // ensure short/long names are unique across all args (including potential auto-generated ones)
+    for(const auto& existing_arg : m_kw_args) {
+        if (!short_name.empty() && existing_arg.short_name == short_name) {
+             throw std::invalid_argument("short name '" + short_name + "' already exists.");
         }
-        if (!longName.empty() && existingArg.longName == longName) {
-             throw std::invalid_argument("Long name '" + longName + "' already exists.");
+        if (!long_name.empty() && existing_arg.long_name == long_name) {
+             throw std::invalid_argument("long name '" + long_name + "' already exists.");
         }
     }
 
 
-    // Add the primary argument definition
-    keywordArgs_.push_back(ArgumentDef(name, shortName, longName, help, type,
-                                       required, finalDefaultValue));
+    // add the primary argument definition
+    m_kw_args.push_back(ArgumentDef(name, short_name, long_name, help, type,
+                                       required, final_default_value));
 
-    // Check if we need to add an automatic --no-<flag>
-    const bool *defaultBool = finalDefaultValue.getBool();
-    if (type == ARGTYPE_FLAG && defaultBool && *defaultBool == true && !longName.empty() && longName.rfind("--", 0) == 0) {
-        std::string noFlagName = "no_" + name;
-        std::string noFlagLongName = "--no-" + longName.substr(2); // Remove "--" prefix
-        std::string noFlagHelp = "Disable the " + longName + " flag.";
+    // check if we need to add an automatic --no-<flag>
+    const bool *default_bool = final_default_value.get_bool();
+    if (type == argtype_flag && default_bool && *default_bool == true && !long_name.empty() && long_name.rfind("--", 0) == 0) {
+        std::string no_flag_name = "no_" + name;
+        std::string no_flag_long_name = "--no-" + long_name.substr(2); // remove "--" prefix
+        std::string no_flag_help = "disable the " + long_name + " flag.";
 
-        // Ensure the generated --no- name/longName doesn't conflict
-        auto noIt = std::find_if(
-            keywordArgs_.begin(), keywordArgs_.end(),
-            [&noFlagName](const ArgumentDef &arg) { return arg.name == noFlagName; });
-        if (noIt != keywordArgs_.end()) {
-          throw std::invalid_argument("Automatic negation flag name '" + noFlagName + "' conflicts with an existing argument.");
+        // ensure the generated --no- name/long_name doesn't conflict
+        auto no_it = std::find_if(
+            m_kw_args.begin(), m_kw_args.end(),
+            [&no_flag_name](const ArgumentDef &arg) { return arg.name == no_flag_name; });
+        if (no_it != m_kw_args.end()) {
+          throw std::invalid_argument("automatic negation flag name '" + no_flag_name + "' conflicts with an existing argument.");
         }
-         for(const auto& existingArg : keywordArgs_) {
-            if (existingArg.longName == noFlagLongName) {
-                throw std::invalid_argument("Automatic negation flag long name '" + noFlagLongName + "' conflicts with an existing argument.");
+         for(const auto& existing_arg : m_kw_args) {
+            if (existing_arg.long_name == no_flag_long_name) {
+                throw std::invalid_argument("automatic negation flag long name '" + no_flag_long_name + "' conflicts with an existing argument.");
             }
         }
 
-        // Add the negation argument definition
-        keywordArgs_.push_back(ArgumentDef(noFlagName, "", noFlagLongName, noFlagHelp,
-                                           ARGTYPE_FLAG, false, ArgValue(false), false, name));
+        // add the negation argument definition
+        m_kw_args.push_back(ArgumentDef(no_flag_name, "", no_flag_long_name, no_flag_help,
+                                           argtype_flag, false, ArgValue(false), false));
     }
 
     return *this;
   }
 
-  // Add a positional argument (defined by order)
-  Command &addPositionalArg(std::string name, std::string help,
-                            ArgType type = ARGTYPE_SINGLE, bool required = true,
-                            ArgValue defaultValue = ArgValue()) {
-    if (type == ARGTYPE_FLAG) {
-      throw std::invalid_argument("Positional arguments cannot be flags.");
+  // add a positional argument (defined by order)
+  Command &add_positional_arg(std::string name, std::string help,
+                            ArgType type = argtype_single, bool required = true,
+                            ArgValue default_value = ArgValue()) {
+    if (type == argtype_flag) {
+      throw std::invalid_argument("positional arguments cannot be flags.");
     }
 
-    // Ensure the new positional argument is unique
+    // ensure the new positional argument is unique
     auto it = std::find_if(
-        positionalArgs_.begin(), positionalArgs_.end(),
+        m_pos_args.begin(), m_pos_args.end(),
         [&name](const ArgumentDef &arg) { return arg.name == name; });
-    if (it != positionalArgs_.end()) {
-      throw std::invalid_argument("Argument '" + name + "' already exists.");
+    if (it != m_pos_args.end()) {
+      throw std::invalid_argument("argument '" + name + "' already exists.");
     }
 
-    positionalArgs_.push_back(ArgumentDef(
-        name, "", "", help, ARGTYPE_POSITIONAL, required, defaultValue));
-    positionalArgs_.back().type = type;
+    m_pos_args.push_back(ArgumentDef(
+        name, "", "", help, argtype_positional, required, default_value));
+    m_pos_args.back().type = type;
     return *this;
   }
 
-  // Add a subcommand (takes ownership of the pointer)
-  Command &addSubcommand(std::shared_ptr<Command> sub) {
+  // add a command under this command (making this command act as a group)
+  Command &add_command(std::shared_ptr<Command> sub) {
     if (!sub)
       return *this;
 
-    sub->ensureHelpArgument();
+    sub->ensure_help_argument();
 
-    std::string subName = sub->getName();
-    // Check for conflicts with existing names and aliases
-    if (subcommands_.count(subName)) {
-      throw std::invalid_argument("Subcommand name '" + subName +
+    std::string sub_name = sub->get_name();
+    // check for conflicts with existing names and aliases
+    if (m_commands.count(sub_name)) {
+      throw std::invalid_argument("subcommand name '" + sub_name +
                                   "' already exists.");
     }
-    for (const auto &pair : subcommands_) {
-      if (pair.second->hasAlias(subName)) {
-        throw std::invalid_argument("Subcommand name '" + subName +
+    for (const auto &pair : m_commands) {
+      if (pair.second->has_alias(sub_name)) {
+        throw std::invalid_argument("subcommand name '" + sub_name +
                                     "' conflicts with an existing alias.");
       }
-      for (const auto &alias : sub->getAliases()) {
-        if (pair.first == alias || pair.second->hasAlias(alias)) {
+      for (const auto &alias : sub->get_aliases()) {
+        if (pair.first == alias || pair.second->has_alias(alias)) {
           throw std::invalid_argument(
-              "Subcommand alias '" + alias +
+              "subcommand alias '" + alias +
               "' conflicts with an existing name or alias.");
         }
       }
     }
-    // Also check the new subcommand's aliases against its own name
-    for (const auto &alias : sub->getAliases()) {
-      if (alias == subName) {
-        throw std::invalid_argument("Subcommand alias '" + alias +
+    // also check the new subcommand's aliases against its own name
+    for (const auto &alias : sub->get_aliases()) {
+      if (alias == sub_name) {
+        throw std::invalid_argument("subcommand alias '" + alias +
                                     "' cannot be the same as its name '" +
-                                    subName + "'.");
+                                    sub_name + "'.");
       }
     }
 
-    subcommands_[subName] = sub;
+    m_commands[sub_name] = sub;
     return *this;
   }
 
-  // Add an alias to this command
-  Command &addAlias(const std::string &alias) {
-    if (alias == name_) {
+  // add an alias to this command
+  Command &add_alias(const std::string &alias) {
+    if (alias == m_name) {
       throw std::invalid_argument(
-          "Alias cannot be the same as the command name '" + name_ + "'.");
+          "alias cannot be the same as the command name '" + m_name + "'.");
     }
-    // Could add checks here to ensure alias doesn't conflict with other sibling
+    // could add checks here to ensure alias doesn't conflict with other sibling
     // commands/aliases if added to a parent
-    aliases_.push_back(alias);
+    m_aliases.push_back(alias);
     return *this;
   }
 
-  // Set the function pointer handler
-  Command &setHandler(CommandHandler handler) {
-    handler_ = handler;
+  // set the function pointer handler
+  Command &set_handler(CommandHandler handler) {
+    m_handler = handler;
     return *this;
   }
 
-  const std::string &getName() const { return name_; }
-  const std::string &getHelp() const { return help_; }
+  const std::string &get_name() const { return m_name; }
+  const std::string &get_help() const { return m_help; }
   const std::map<std::string, std::shared_ptr<Command>> &
-  getSubcommands() const {
-    return subcommands_;
+  get_subcommands() const {
+    return m_commands;
   }
-  const std::vector<ArgumentDef> &getKeywordArgs() const {
-    return keywordArgs_;
+  const std::vector<ArgumentDef> &get_keyword_args() const {
+    return m_kw_args;
   }
-  const std::vector<ArgumentDef> &getPositionalArgs() const {
-    return positionalArgs_;
+  const std::vector<ArgumentDef> &get_positional_args() const {
+    return m_pos_args;
   }
-  const std::vector<std::string> &getAliases() const { return aliases_; }
-  CommandHandler getHandler() const { return handler_; }
+  const std::vector<std::string> &get_aliases() const { return m_aliases; }
+  CommandHandler get_handler() const { return m_handler; }
 
   ParseResult parse(const std::vector<lexer::Token> &tokens,
-                    size_t &currentTokenIndex,
-                    const std::string &commandPathPrefix) const {
+                    size_t &current_token_index,
+                    const std::string &command_path_prefix) const {
     ParseResult result;
-    result.commandPath = commandPathPrefix + name_;
-    // Initialize exit code for potential errors or help requests
-    result.exitCode = 0; // Default to 0 for success before handler runs
+    result.command_path = command_path_prefix + m_name;
+    // initialize exit code for potential errors or help requests
+    result.exit_code = 0; // default to 0 for success before handler runs
 
-    std::map<std::string, bool> keywordArgsSeen;
-    size_t currentPositionalArgIndex = 0;
+    std::map<std::string, bool> keyword_args_seen;
+    size_t current_positional_arg_index = 0;
 
-    for (std::vector<ArgumentDef>::const_iterator it = keywordArgs_.begin();
-         it != keywordArgs_.end(); ++it) {
+    for (std::vector<ArgumentDef>::const_iterator it = m_kw_args.begin();
+         it != m_kw_args.end(); ++it) {
       const ArgumentDef &arg = *it;
-      if (arg.isHelpFlag) {
+      if (arg.is_help_flag) {
         continue;
       }
-      result.keywordValues[arg.name] = arg.defaultValue;
+      result.keyword_values[arg.name] = arg.default_value;
     }
 
-    while (currentTokenIndex < tokens.size()) {
-      const lexer::Token &token = tokens[currentTokenIndex];
-      lexer::TokenKind kind = token.getKind();
+    while (current_token_index < tokens.size()) {
+      const lexer::Token &token = tokens[current_token_index];
+      lexer::TokenKind kind = token.get_kind();
 
-      // Check for Keyword Arguments/Flags (TOK_FLAG_SHORT, TOK_FLAG_LONG)
-      if (kind == lexer::TOK_FLAG_SHORT || kind == lexer::TOK_FLAG_LONG) {
-        std::string flagNameStr = token.getIdValue(); // Get name without dashes
-        bool is_short_flag_kind = (kind == lexer::TOK_FLAG_SHORT);
+      // check for keyword arguments/flags (TokFlagShort, TokFlagLong)
+      if (kind == lexer::TokFlagShort || kind == lexer::TokFlagLong) {
+        std::string flag_name_str = token.get_id_value(); // get name without dashes
+        bool is_short_flag_kind = (kind == lexer::TokFlagShort);
 
-        if (is_short_flag_kind && flagNameStr.length() > 1) {
-          currentTokenIndex++;
+        if (is_short_flag_kind && flag_name_str.length() > 1) {
+          current_token_index++;
 
-          for (size_t i = 0; i < flagNameStr.length(); ++i) {
-            std::string singleFlagChar(1, flagNameStr[i]);
-            const ArgumentDef *matchedArg =
-                findKeywordArg(singleFlagChar, true);
+          for (size_t i = 0; i < flag_name_str.length(); ++i) {
+            std::string single_flag_char(1, flag_name_str[i]);
+            const ArgumentDef *matched_arg =
+                find_keyword_arg(single_flag_char, true);
 
-            if (!matchedArg) {
-              result.status = ParseResult::PPARSER_STATUS_PARSE_ERROR;
-              result.errorMessage = "Unknown option in combined flags: -";
-              result.errorMessage += singleFlagChar;
-              std::cerr << "Error: " << result.errorMessage << "\n\n";
-              generateHelp(std::cerr, commandPathPrefix);
-              result.exitCode = 1;
+            if (!matched_arg) {
+              result.status = ParseResult::ParserStatus_ParseError;
+              result.error_message = "unknown option in combined flags: -";
+              result.error_message += single_flag_char;
+              std::cerr << "error: " << result.error_message << "\n\n";
+              generate_help(std::cerr, command_path_prefix);
+              result.exit_code = 1;
               return result;
             }
 
-            if (matchedArg->isHelpFlag) {
-              generateHelp(std::cout, commandPathPrefix);
-              result.status = ParseResult::PPARSER_STATUS_HELP_REQUESTED;
-              result.exitCode = 0; // Help request is a successful exit
+            if (matched_arg->is_help_flag) {
+              generate_help(std::cout, command_path_prefix);
+              result.status = ParseResult::ParserStatus_HelpRequested;
+              result.exit_code = 0; // help request is a successful exit
               return result;
             }
 
-            // Ensure combined flags are actually boolean flags
-            if (matchedArg->type != ARGTYPE_FLAG) {
-              result.status = ParseResult::PPARSER_STATUS_PARSE_ERROR;
-              result.errorMessage = "Option -" + singleFlagChar +
+            // ensure combined flags are actually boolean flags
+            if (matched_arg->type != argtype_flag) {
+              result.status = ParseResult::ParserStatus_ParseError;
+              result.error_message = "option -" + single_flag_char +
                                     " requires a value and cannot be combined.";
-              std::cerr << "Error: " << result.errorMessage << "\n\n";
-              generateHelp(std::cerr, commandPathPrefix);
-              result.exitCode = 1;
+              std::cerr << "error: " << result.error_message << "\n\n";
+              generate_help(std::cerr, command_path_prefix);
+              result.exit_code = 1;
               return result;
             }
 
-            // Mark as seen and set value to true
-            keywordArgsSeen[matchedArg->name] = true;
-            result.keywordValues[matchedArg->name] = ArgValue(true);
+            // mark as seen and set value to true
+            keyword_args_seen[matched_arg->name] = true;
+            result.keyword_values[matched_arg->name] = ArgValue(true);
           }
           continue;
         }
 
-        const ArgumentDef *matchedArg =
-            findKeywordArg(flagNameStr, is_short_flag_kind);
+        const ArgumentDef *matched_arg =
+            find_keyword_arg(flag_name_str, is_short_flag_kind);
 
-        if (!matchedArg) {
-          result.status = ParseResult::PPARSER_STATUS_PARSE_ERROR;
-          result.errorMessage = "Unknown option: ";
-          result.errorMessage += (is_short_flag_kind ? "-" : "--");
-          result.errorMessage += flagNameStr;
-          std::cerr << "Error: " << result.errorMessage << "\n\n";
-          generateHelp(std::cerr, commandPathPrefix);
-          result.exitCode = 1;
+        if (!matched_arg) {
+          result.status = ParseResult::ParserStatus_ParseError;
+          result.error_message = "unknown option: ";
+          result.error_message += (is_short_flag_kind ? "-" : "--");
+          result.error_message += flag_name_str;
+          std::cerr << "error: " << result.error_message << "\n\n";
+          generate_help(std::cerr, command_path_prefix);
+          result.exit_code = 1;
           return result;
         }
 
-        // If this is the specifically marked help flag, handle it immediately.
-        if (matchedArg->isHelpFlag) {
-          generateHelp(std::cout, commandPathPrefix);
-          result.status = ParseResult::PPARSER_STATUS_HELP_REQUESTED;
-          result.exitCode = 0; // Help request is a successful exit
+        // if this is the specifically marked help flag, handle it immediately.
+        if (matched_arg->is_help_flag) {
+          generate_help(std::cout, command_path_prefix);
+          result.status = ParseResult::ParserStatus_HelpRequested;
+          result.exit_code = 0; // help request is a successful exit
           return result;
         }
 
-        currentTokenIndex++; // Consume the flag token itself
-        keywordArgsSeen[matchedArg->name] = true;
+        current_token_index++; // consume the flag token itself
+        keyword_args_seen[matched_arg->name] = true;
 
-        // Handle argument value based on type
-        if (matchedArg->type == ARGTYPE_FLAG) {
-          result.keywordValues[matchedArg->name] = ArgValue(true);
+        // handle argument value based on type
+        if (matched_arg->type == argtype_flag) {
+          result.keyword_values[matched_arg->name] = ArgValue(true);
         } else {
-          // Check if next token exists and is not another flag
-          if (currentTokenIndex >= tokens.size() ||
-              tokens[currentTokenIndex].getKind() == lexer::TOK_FLAG_SHORT ||
-              tokens[currentTokenIndex].getKind() == lexer::TOK_FLAG_LONG) {
-            result.status = ParseResult::PPARSER_STATUS_PARSE_ERROR;
-            result.errorMessage =
-                "Option " + matchedArg->getDisplayName() + " requires a value.";
-            std::cerr << "Error: " << result.errorMessage << "\n\n";
-            generateHelp(std::cerr, commandPathPrefix);
-            result.exitCode = 1;
+          // check if next token exists and is not another flag
+          if (current_token_index >= tokens.size() ||
+              tokens[current_token_index].get_kind() == lexer::TokFlagShort ||
+              tokens[current_token_index].get_kind() == lexer::TokFlagLong) {
+            result.status = ParseResult::ParserStatus_ParseError;
+            result.error_message =
+                "option " + matched_arg->get_display_name() + " requires a value.";
+            std::cerr << "error: " << result.error_message << "\n\n";
+            generate_help(std::cerr, command_path_prefix);
+            result.exit_code = 1;
             return result;
           }
 
-          const lexer::Token &valueToken = tokens[currentTokenIndex];
-          ArgValue parsedValue = parseTokenValue(valueToken, matchedArg->type);
-          if (parsedValue.isNone()) {
-            result.status = ParseResult::PPARSER_STATUS_PARSE_ERROR;
-            result.errorMessage =
-                "Invalid value for option " + matchedArg->getDisplayName();
-            std::cerr << "Error: " << result.errorMessage << "\n\n";
-            generateHelp(std::cerr, commandPathPrefix);
-            result.exitCode = 1;
+          const lexer::Token &value_token = tokens[current_token_index];
+          ArgValue parsed_value = parse_token_value(value_token, matched_arg->type);
+          if (parsed_value.is_none()) {
+            result.status = ParseResult::ParserStatus_ParseError;
+            result.error_message =
+                "invalid value for option " + matched_arg->get_display_name();
+            std::cerr << "error: " << result.error_message << "\n\n";
+            generate_help(std::cerr, command_path_prefix);
+            result.exit_code = 1;
             return result;
           }
 
-          if (matchedArg->type == ARGTYPE_SINGLE) {
-            result.keywordValues[matchedArg->name] = parsedValue;
-            currentTokenIndex++;
-          } else if (matchedArg->type == ARGTYPE_MULTIPLE) {
-            // Ensure value type is string for MULTIPLE
-            if (!parsedValue.isString()) {
-              result.status = ParseResult::PPARSER_STATUS_PARSE_ERROR;
-              result.errorMessage =
-                  "Internal error: Expected string value for multiple option " +
-                  matchedArg->name;
-              std::cerr << "Error: " << result.errorMessage << "\n\n";
-              generateHelp(std::cerr, commandPathPrefix);
-              result.exitCode = 1;
+          if (matched_arg->type == argtype_single) {
+            result.keyword_values[matched_arg->name] = parsed_value;
+            current_token_index++;
+          } else if (matched_arg->type == argtype_multiple) {
+            // ensure value type is string for multiple
+            if (!parsed_value.is_string()) {
+              result.status = ParseResult::ParserStatus_ParseError;
+              result.error_message =
+                  "internal error: expected string value for multiple option " +
+                  matched_arg->name;
+              std::cerr << "error: " << result.error_message << "\n\n";
+              generate_help(std::cerr, command_path_prefix);
+              result.exit_code = 1;
               return result;
             }
 
-            std::map<std::string, ArgValue>::iterator mapIt =
-                result.keywordValues.find(matchedArg->name);
-            if (mapIt == result.keywordValues.end() ||
-                !mapIt->second.isStringVector() || mapIt->second.isNone()) {
-              result.keywordValues[matchedArg->name] =
+            std::map<std::string, ArgValue>::iterator map_it =
+                result.keyword_values.find(matched_arg->name);
+            if (map_it == result.keyword_values.end() ||
+                !map_it->second.is_string_vector() || map_it->second.is_none()) {
+              result.keyword_values[matched_arg->name] =
                   ArgValue(std::vector<std::string>());
-              mapIt = result.keywordValues.find(matchedArg->name);
+              map_it = result.keyword_values.find(matched_arg->name);
             }
 
             std::vector<std::string> *vec =
-                mapIt->second.getStringVectorPtrUnsafe();
+                map_it->second.get_string_vector_ptr_unsafe();
             if (vec) {
-              const std::string *firstValStrPtr = parsedValue.getString();
-              if (firstValStrPtr) {
-                vec->push_back(*firstValStrPtr);
+              const std::string *first_val_str_ptr = parsed_value.get_string();
+              if (first_val_str_ptr) {
+                vec->push_back(*first_val_str_ptr);
               }
 
-              currentTokenIndex++;
+              current_token_index++;
 
-              // Keep consuming values until next flag or end
-              while (currentTokenIndex < tokens.size() &&
-                     tokens[currentTokenIndex].getKind() !=
-                         lexer::TOK_FLAG_SHORT &&
-                     tokens[currentTokenIndex].getKind() !=
-                         lexer::TOK_FLAG_LONG) {
-                const lexer::Token &nextValueToken = tokens[currentTokenIndex];
-                ArgValue nextParsedValue =
-                    parseTokenValue(nextValueToken, ARGTYPE_SINGLE);
-                const std::string *nextValStrPtr = nextParsedValue.getString();
-                if (nextValStrPtr) {
-                  vec->push_back(*nextValStrPtr);
-                  currentTokenIndex++;
+              // keep consuming values until next flag or end
+              while (current_token_index < tokens.size() &&
+                     tokens[current_token_index].get_kind() !=
+                         lexer::TokFlagShort &&
+                     tokens[current_token_index].get_kind() !=
+                         lexer::TokFlagLong) {
+                const lexer::Token &next_value_token = tokens[current_token_index];
+                ArgValue next_parsed_value =
+                    parse_token_value(next_value_token, argtype_single);
+                const std::string *next_val_str_ptr = next_parsed_value.get_string();
+                if (next_val_str_ptr) {
+                  vec->push_back(*next_val_str_ptr);
+                  current_token_index++;
                 } else {
                   break;
                 }
               }
             } else {
-              result.status = ParseResult::PPARSER_STATUS_PARSE_ERROR;
-              result.errorMessage =
-                  "Internal error accessing vector for multiple values for " +
-                  matchedArg->name;
-              std::cerr << "Error: " << result.errorMessage << "\n\n";
-              generateHelp(std::cerr, commandPathPrefix);
-              result.exitCode = 1;
+              result.status = ParseResult::ParserStatus_ParseError;
+              result.error_message =
+                  "internal error accessing vector for multiple values for " +
+                  matched_arg->name;
+              std::cerr << "error: " << result.error_message << "\n\n";
+              generate_help(std::cerr, command_path_prefix);
+              result.exit_code = 1;
               return result;
             }
           }
@@ -777,224 +775,224 @@ public:
         continue;
       }
 
-      // Check for subcommand
-      if (kind == lexer::TOK_ID) {
-        std::string potentialSubcommandOrAlias = token.getIdValue();
-        std::shared_ptr<Command> matchedSubcommand = nullptr;
+      // check for subcommand
+      if (kind == lexer::TokId) {
+        std::string potential_subcommand_or_alias = token.get_id_value();
+        std::shared_ptr<Command> matched_subcommand = nullptr;
 
-        // First, check if it's a direct name match
-        auto subIt = subcommands_.find(potentialSubcommandOrAlias);
-        if (subIt != subcommands_.end()) {
-          matchedSubcommand = subIt->second;
+        // first, check if it's a direct name match
+        auto sub_it = m_commands.find(potential_subcommand_or_alias);
+        if (sub_it != m_commands.end()) {
+          matched_subcommand = sub_it->second;
         } else {
-          // If not a direct name match, check aliases
-          for (const auto &pair : subcommands_) {
-            if (pair.second->hasAlias(potentialSubcommandOrAlias)) {
-              // Prevent aliasing to multiple commands
-              if (matchedSubcommand) {
-                result.status = ParseResult::PPARSER_STATUS_PARSE_ERROR;
-                result.errorMessage = "Ambiguous alias '" +
-                                      potentialSubcommandOrAlias +
+          // if not a direct name match, check aliases
+          for (const auto &pair : m_commands) {
+            if (pair.second->has_alias(potential_subcommand_or_alias)) {
+              // prevent aliasing to multiple commands
+              if (matched_subcommand) {
+                result.status = ParseResult::ParserStatus_ParseError;
+                result.error_message = "ambiguous alias '" +
+                                      potential_subcommand_or_alias +
                                       "' matches multiple subcommands.";
-                std::cerr << "Error: " << result.errorMessage << "\n\n";
-                generateHelp(std::cerr, commandPathPrefix);
-                result.exitCode = 1;
+                std::cerr << "error: " << result.error_message << "\n\n";
+                generate_help(std::cerr, command_path_prefix);
+                result.exit_code = 1;
                 return result;
               }
-              matchedSubcommand = pair.second;
+              matched_subcommand = pair.second;
             }
           }
         }
 
-        // If a subcommand (by name or alias) was found
-        if (matchedSubcommand) {
-          currentTokenIndex++; // Consume the subcommand/alias token
-          ParseResult subResult = matchedSubcommand->parse(
-              tokens, currentTokenIndex, result.commandPath + " ");
+        // if a subcommand (by name or alias) was found
+        if (matched_subcommand) {
+          current_token_index++; // consume the subcommand/alias token
+          ParseResult sub_result = matched_subcommand->parse(
+              tokens, current_token_index, result.command_path + " ");
 
-          // Propagate the result (success, error, or help request) from the
+          // propagate the result (success, error, or help request) from the
           // subcommand.
-          return subResult;
+          return sub_result;
         }
       }
 
-      // If not a flag/option or subcommand, treat as positional argument
-      if (currentPositionalArgIndex < positionalArgs_.size()) {
-        const ArgumentDef &posArgDef =
-            positionalArgs_[currentPositionalArgIndex];
-        ArgValue parsedValue = parseTokenValue(token, posArgDef.type);
+      // if not a flag/option or subcommand, treat as positional argument
+      if (current_positional_arg_index < m_pos_args.size()) {
+        const ArgumentDef &pos_arg_def =
+            m_pos_args[current_positional_arg_index];
+        ArgValue parsed_value = parse_token_value(token, pos_arg_def.type);
 
-        if (parsedValue.isNone()) {
-          result.status = ParseResult::PPARSER_STATUS_PARSE_ERROR;
-          result.errorMessage =
-              "Invalid value for positional argument '" + posArgDef.name + "'";
-          std::cerr << "Error: " << result.errorMessage << "\n\n";
-          generateHelp(std::cerr, commandPathPrefix);
-          result.exitCode = 1;
+        if (parsed_value.is_none()) {
+          result.status = ParseResult::ParserStatus_ParseError;
+          result.error_message =
+              "invalid value for positional argument '" + pos_arg_def.name + "'";
+          std::cerr << "error: " << result.error_message << "\n\n";
+          generate_help(std::cerr, command_path_prefix);
+          result.exit_code = 1;
           return result;
         }
 
-        if (posArgDef.type == ARGTYPE_SINGLE) {
-          result.positionalValues.push_back(parsedValue);
-          currentTokenIndex++;
-          currentPositionalArgIndex++;
-        } else if (posArgDef.type == ARGTYPE_MULTIPLE) {
-          // Ensure value type is string for MULTIPLE positional
-          if (!parsedValue.isString()) {
-            result.status = ParseResult::PPARSER_STATUS_PARSE_ERROR;
-            result.errorMessage = "Internal error: Expected string value for "
+        if (pos_arg_def.type == argtype_single) {
+          result.positional_values.push_back(parsed_value);
+          current_token_index++;
+          current_positional_arg_index++;
+        } else if (pos_arg_def.type == argtype_multiple) {
+          // ensure value type is string for multiple positional
+          if (!parsed_value.is_string()) {
+            result.status = ParseResult::ParserStatus_ParseError;
+            result.error_message = "internal error: expected string value for "
                                   "multiple positional argument " +
-                                  posArgDef.name;
-            std::cerr << "Error: " << result.errorMessage << "\n\n";
-            generateHelp(std::cerr, commandPathPrefix);
-            result.exitCode = 1;
+                                  pos_arg_def.name;
+            std::cerr << "error: " << result.error_message << "\n\n";
+            generate_help(std::cerr, command_path_prefix);
+            result.exit_code = 1;
             return result;
           }
 
           std::vector<std::string> values;
-          // Add the first value (must be string)
-          const std::string *firstValStrPtr = parsedValue.getString();
-          if (firstValStrPtr) { // Should always be true
-            values.push_back(*firstValStrPtr);
+          // add the first value (must be string)
+          const std::string *first_val_str_ptr = parsed_value.get_string();
+          if (first_val_str_ptr) { // should always be true
+            values.push_back(*first_val_str_ptr);
           }
 
-          currentTokenIndex++;
-          while (currentTokenIndex < tokens.size() &&
-                 !isFlagToken(tokens,
-                              currentTokenIndex) /* && !isSubcommand(...) */) {
-            // TODO: Add isSubcommand check more robustly?
-            // Currently relies on subcommand check earlier in loop
-            const lexer::Token &nextValueToken = tokens[currentTokenIndex];
-            // Parse subsequent as strings
-            ArgValue nextParsedValue =
-                parseTokenValue(nextValueToken, ARGTYPE_SINGLE);
-            const std::string *nextValStrPtr = nextParsedValue.getString();
-            if (nextValStrPtr) {
-              values.push_back(*nextValStrPtr);
-              currentTokenIndex++;
+          current_token_index++;
+          while (current_token_index < tokens.size() &&
+                 !is_flag_token(tokens,
+                              current_token_index) /* && !is_subcommand(...) */) {
+            // todo: add is_subcommand check more robustly?
+            // currently relies on subcommand check earlier in loop
+            const lexer::Token &next_value_token = tokens[current_token_index];
+            // parse subsequent as strings
+            ArgValue next_parsed_value =
+                parse_token_value(next_value_token, argtype_single);
+            const std::string *next_val_str_ptr = next_parsed_value.get_string();
+            if (next_val_str_ptr) {
+              values.push_back(*next_val_str_ptr);
+              current_token_index++;
             } else {
               break;
             }
           }
-          // Add the vector to positional args using ArgValue constructor
-          result.positionalValues.push_back(ArgValue(values));
-          currentPositionalArgIndex++;
+          // add the vector to positional args using ArgValue constructor
+          result.positional_values.push_back(ArgValue(values));
+          current_positional_arg_index++;
         }
-        // TODO: Add validation for number of positional args
+        // todo: add validation for number of positional args
       } else {
-        // Unexpected token (neither flag, subcommand, nor expected positional)
-        result.status = ParseResult::PPARSER_STATUS_PARSE_ERROR;
+        // unexpected token (neither flag, subcommand, nor expected positional)
+        result.status = ParseResult::ParserStatus_ParseError;
         std::stringstream ss;
-        ss << "Unexpected argument: ";
+        ss << "unexpected argument: ";
         token.print(ss);
-        result.errorMessage = ss.str();
-        // Print error and help for this command to stderr
-        std::cerr << "Error: " << result.errorMessage << "\n\n";
-        generateHelp(std::cerr, commandPathPrefix);
-        result.exitCode = 1;
+        result.error_message = ss.str();
+        // print error and help for this command to stderr
+        std::cerr << "error: " << result.error_message << "\n\n";
+        generate_help(std::cerr, command_path_prefix);
+        result.exit_code = 1;
         return result;
       }
     }
 
-    // Check for required keyword arguments
-    for (std::vector<ArgumentDef>::const_iterator it = keywordArgs_.begin();
-         it != keywordArgs_.end(); ++it) {
+    // check for required keyword arguments
+    for (std::vector<ArgumentDef>::const_iterator it = m_kw_args.begin();
+         it != m_kw_args.end(); ++it) {
       const ArgumentDef &arg = *it;
-      // Skip check for the automatic help flag
-      if (arg.isHelpFlag)
+      // skip check for the automatic help flag
+      if (arg.is_help_flag)
         continue;
       if (arg.required &&
-          keywordArgsSeen.find(arg.name) == keywordArgsSeen.end()) {
-        result.status = ParseResult::PPARSER_STATUS_PARSE_ERROR;
-        result.errorMessage =
-            "Missing required option: " + arg.getDisplayName();
-        std::cerr << "Error: " << result.errorMessage << "\n\n";
-        generateHelp(std::cerr, commandPathPrefix);
-        result.exitCode = 1;
+          keyword_args_seen.find(arg.name) == keyword_args_seen.end()) {
+        result.status = ParseResult::ParserStatus_ParseError;
+        result.error_message =
+            "missing required option: " + arg.get_display_name();
+        std::cerr << "error: " << result.error_message << "\n\n";
+        generate_help(std::cerr, command_path_prefix);
+        result.exit_code = 1;
         return result;
       }
     }
 
-    // Check for required positional arguments
-    if (positionalArgs_.size() > currentPositionalArgIndex) {
-      for (size_t i = currentPositionalArgIndex; i < positionalArgs_.size();
+    // check for required positional arguments
+    if (m_pos_args.size() > current_positional_arg_index) {
+      for (size_t i = current_positional_arg_index; i < m_pos_args.size();
            ++i) {
-        const ArgumentDef &posArgDef = positionalArgs_[i];
-        if (posArgDef.required) {
-          result.status = ParseResult::PPARSER_STATUS_PARSE_ERROR;
-          result.errorMessage =
-              "Missing required positional argument: " + posArgDef.name;
-          std::cerr << "Error: " << result.errorMessage << "\n\n";
-          generateHelp(std::cerr, commandPathPrefix);
-          result.exitCode = 1;
+        const ArgumentDef &pos_arg_def = m_pos_args[i];
+        if (pos_arg_def.required) {
+          result.status = ParseResult::ParserStatus_ParseError;
+          result.error_message =
+              "missing required positional argument: " + pos_arg_def.name;
+          std::cerr << "error: " << result.error_message << "\n\n";
+          generate_help(std::cerr, command_path_prefix);
+          result.exit_code = 1;
           return result;
         } else {
-          // Add default value for optional missing positional args
-          result.positionalValues.push_back(posArgDef.defaultValue);
+          // add default value for optional missing positional args
+          result.positional_values.push_back(pos_arg_def.default_value);
         }
       }
     }
 
-    // Only execute the handler if parsing was successful and no subcommand took
+    // only execute the handler if parsing was successful and no subcommand took
     // over.
-    if (handler_ && result.status == ParseResult::PPARSER_STATUS_SUCCESS) {
-      result.exitCode = handler_(result);
+    if (m_handler && result.status == ParseResult::ParserStatus_Success) {
+      result.exit_code = m_handler(result);
     }
 
     return result;
   }
 
-  // Generate help text for this command and its subcommands
-  void generateHelp(std::ostream &os,
-                    const std::string &commandPathPrefix) const {
-    std::string fullCommandPath =
-        commandPathPrefix.empty() ? name_ : commandPathPrefix + name_;
-    if (!commandPathPrefix.empty() &&
-        commandPathPrefix[commandPathPrefix.length() - 1] != ' ') {
-      fullCommandPath = commandPathPrefix + " " + name_;
+  // generate help text for this command and its subcommands
+  void generate_help(std::ostream &os,
+                    const std::string &command_path_prefix) const {
+    std::string full_command_path =
+        command_path_prefix.empty() ? m_name : command_path_prefix + m_name;
+    if (!command_path_prefix.empty() &&
+        command_path_prefix[command_path_prefix.length() - 1] != ' ') {
+      full_command_path = command_path_prefix + " " + m_name;
     } else {
-      fullCommandPath = commandPathPrefix + name_;
+      full_command_path = command_path_prefix + m_name;
     }
 
-    os << "Usage: " << fullCommandPath;
-    // Collect display names for positional args
-    std::string positionalUsage;
-    for (std::vector<ArgumentDef>::const_iterator it = positionalArgs_.begin();
-         it != positionalArgs_.end(); ++it) {
-      const ArgumentDef &posArg = *it;
-      positionalUsage += " ";
-      positionalUsage += (posArg.required ? "<" : "[");
-      positionalUsage += posArg.name;
-      positionalUsage += (posArg.required ? ">" : "]");
-      if (posArg.type == ARGTYPE_MULTIPLE)
-        positionalUsage += "...";
+    os << "usage: " << full_command_path;
+    // collect display names for positional args
+    std::string positional_usage;
+    for (std::vector<ArgumentDef>::const_iterator it = m_pos_args.begin();
+         it != m_pos_args.end(); ++it) {
+      const ArgumentDef &pos_arg = *it;
+      positional_usage += " ";
+      positional_usage += (pos_arg.required ? "<" : "[");
+      positional_usage += pos_arg.name;
+      positional_usage += (pos_arg.required ? ">" : "]");
+      if (pos_arg.type == argtype_multiple)
+        positional_usage += "...";
     }
 
-    if (!keywordArgs_.empty())
+    if (!m_kw_args.empty())
       os << " [options]";
-    if (!subcommands_.empty())
+    if (!m_commands.empty())
       os << " <command>";
 
-    os << positionalUsage;
+    os << positional_usage;
 
     os << "\n\n";
 
-    if (!help_.empty()) {
-      os << help_ << "\n\n";
+    if (!m_help.empty()) {
+      os << m_help << "\n\n";
     }
 
-    // Info about positional arguments
-    if (!positionalArgs_.empty()) {
-      os << "Arguments:\n";
+    // info about positional arguments
+    if (!m_pos_args.empty()) {
+      os << "arguments:\n";
       for (std::vector<ArgumentDef>::const_iterator it =
-               positionalArgs_.begin();
-           it != positionalArgs_.end(); ++it) {
+               m_pos_args.begin();
+           it != m_pos_args.end(); ++it) {
         const ArgumentDef &arg = *it;
         os << "  " << arg.name << "\t" << arg.help;
-        // Check default value is not NONE
-        if (!arg.defaultValue.isNone()) {
+        // check default value is not none
+        if (!arg.default_value.is_none()) {
           os << " (default: ";
-          arg.defaultValue.print(os);
+          arg.default_value.print(os);
           os << ")";
         }
         if (!arg.required)
@@ -1004,20 +1002,20 @@ public:
       os << "\n";
     }
 
-    // Info about keyword arguments
-    if (!keywordArgs_.empty()) {
-      os << "Options:\n";
-      for (std::vector<ArgumentDef>::const_iterator it = keywordArgs_.begin();
-           it != keywordArgs_.end(); ++it) {
+    // info about keyword arguments
+    if (!m_kw_args.empty()) {
+      os << "options:\n";
+      for (std::vector<ArgumentDef>::const_iterator it = m_kw_args.begin();
+           it != m_kw_args.end(); ++it) {
         const ArgumentDef &arg = *it;
-        os << "  " << arg.getDisplayName() << "\t" << arg.help;
-        if (!arg.defaultValue.isNone()) {
-          // Only show non-default bools (true) or non-bool defaults
-          const bool *bVal = arg.defaultValue.getBool();
-          if (!bVal ||
-              *bVal == true) { // Show default if it's true, or if not a bool
+        os << "  " << arg.get_display_name() << "\t" << arg.help;
+        if (!arg.default_value.is_none()) {
+          // only show non-default bools (true) or non-bool defaults
+          const bool *b_val = arg.default_value.get_bool();
+          if (!b_val ||
+              *b_val == true) { // show default if it's true, or if not a bool
             os << " (default: ";
-            arg.defaultValue.print(os);
+            arg.default_value.print(os);
             os << ")";
           }
         }
@@ -1028,15 +1026,15 @@ public:
       os << "\n";
     }
 
-    // Available subcommands
-    if (!subcommands_.empty()) {
-      os << "Commands:\n";
+    // available subcommands
+    if (!m_commands.empty()) {
+      os << "commands:\n";
       for (std::map<std::string, std::shared_ptr<Command>>::const_iterator it =
-               subcommands_.begin();
-           it != subcommands_.end(); ++it) {
-        os << "  " << it->first; // Print the main command name
-        // Print aliases if any exist
-        const auto &aliases = it->second->getAliases();
+               m_commands.begin();
+           it != m_commands.end(); ++it) {
+        os << "  " << it->first; // print the main command name
+        // print aliases if any exist
+        const auto &aliases = it->second->get_aliases();
         if (!aliases.empty()) {
           os << " (" << aliases[0];
           for (size_t i = 1; i < aliases.size(); ++i) {
@@ -1044,57 +1042,57 @@ public:
           }
           os << ")";
         }
-        os << "\t" << it->second->getHelp() << "\n";
+        os << "\t" << it->second->get_help() << "\n";
       }
-      os << "\nUse '" << fullCommandPath
+      os << "\n_use '" << full_command_path
          << " <command> --help' for more information on a command.\n";
     }
   }
 
 private:
-  // Private copy constructor and assignment operator to prevent copying
+  // private copy constructor and assignment operator to prevent copying
   Command(const Command &);
   Command &operator=(const Command &);
 
-  std::string name_;
-  std::string help_;
-  std::vector<ArgumentDef> keywordArgs_;
-  std::vector<ArgumentDef> positionalArgs_;
-  std::map<std::string, std::shared_ptr<Command>> subcommands_;
-  std::vector<std::string> aliases_;
+  std::string m_name;
+  std::string m_help;
+  std::vector<ArgumentDef> m_kw_args;
+  std::vector<ArgumentDef> m_pos_args;
+  std::map<std::string, std::shared_ptr<Command>> m_commands;
+  std::vector<std::string> m_aliases;
 
 public:
-  CommandHandler handler_;
+  CommandHandler m_handler;
 
 private:
-  // Helper to check if the token at the given index is a flag/option token
-  bool isFlagToken(const std::vector<lexer::Token> &tokens,
+  // helper to check if the token at the given index is a flag/option token
+  bool is_flag_token(const std::vector<lexer::Token> &tokens,
                    size_t index) const {
     if (index >= tokens.size())
       return false;
-    lexer::TokenKind kind = tokens[index].getKind();
-    return kind == lexer::TOK_FLAG_SHORT || kind == lexer::TOK_FLAG_LONG;
+    lexer::TokenKind kind = tokens[index].get_kind();
+    return kind == lexer::TokFlagShort || kind == lexer::TokFlagLong;
   }
 
-  // Find keyword argument definition by flag name (use iterator loop)
-  const ArgumentDef *findKeywordArg(
-      const std::string &flag_name_value, // Name part only (e.g., "f", "force")
+  // find keyword argument definition by flag name (use iterator loop)
+  const ArgumentDef *find_keyword_arg(
+      const std::string &flag_name_value, // name part only (e.g., "f", "force")
       bool is_short_flag_kind) const {
-    for (std::vector<ArgumentDef>::const_iterator it = keywordArgs_.begin();
-         it != keywordArgs_.end(); ++it) {
+    for (std::vector<ArgumentDef>::const_iterator it = m_kw_args.begin();
+         it != m_kw_args.end(); ++it) {
       const ArgumentDef &arg = *it;
       if (is_short_flag_kind) {
-        // Compare flag_name_value against the name part of shortName (e.g.,
+        // compare flag_name_value against the name part of short_name (e.g.,
         // compare "f" with "-f")
-        if (!arg.shortName.empty() && arg.shortName.length() > 1 &&
-            arg.shortName.substr(1) == flag_name_value) {
-          return &arg; // Return pointer to the element
+        if (!arg.short_name.empty() && arg.short_name.length() > 1 &&
+            arg.short_name.substr(1) == flag_name_value) {
+          return &arg; // return pointer to the element
         }
       } else {
-        // Compare flag_name_value against the name part of longName (e.g.,
+        // compare flag_name_value against the name part of long_name (e.g.,
         // compare "force" with "--force")
-        if (!arg.longName.empty() && arg.longName.length() > 2 &&
-            arg.longName.substr(2) == flag_name_value) {
+        if (!arg.long_name.empty() && arg.long_name.length() > 2 &&
+            arg.long_name.substr(2) == flag_name_value) {
           return &arg;
         }
       }
@@ -1102,49 +1100,49 @@ private:
     return nullptr;
   }
 
-  // Helper to parse a single token into an ArgValue based on expected type
-  // Returns ArgValue (which manages memory for string/vector)
-  ArgValue parseTokenValue(const lexer::Token &token,
-                           ArgType expectedType) const {
-    lexer::TokenKind kind = token.getKind();
+  // helper to parse a single token into an ArgValue based on expected type
+  // returns ArgValue (which manages memory for string/vector)
+  ArgValue parse_token_value(const lexer::Token &token,
+                           ArgType expected_type) const {
+    lexer::TokenKind kind = token.get_kind();
 
-    // Allow broader range of tokens to be interpreted as strings if expected
-    bool expectString =
-        (expectedType == ARGTYPE_SINGLE || expectedType == ARGTYPE_MULTIPLE ||
-         expectedType == ARGTYPE_POSITIONAL);
+    // allow broader range of tokens to be interpreted as strings if expected
+    bool expect_string =
+        (expected_type == argtype_single || expected_type == argtype_multiple ||
+         expected_type == argtype_positional);
 
     switch (kind) {
-    case lexer::TOK_INT_LIT:
-      if (expectedType == ARGTYPE_SINGLE || expectedType == ARGTYPE_POSITIONAL)
-        return ArgValue(token.getIntValue());
-      else if (expectString) // Allow int literal as string if needed
-        return ArgValue(token.getStrLitValue());
+    case lexer::TokIntLit:
+      if (expected_type == argtype_single || expected_type == argtype_positional)
+        return ArgValue(token.get_int_value());
+      else if (expect_string) // allow int literal as string if needed
+        return ArgValue(token.get_str_lit_value());
       break;
-    case lexer::TOK_FLOAT_LIT:
-      if (expectedType == ARGTYPE_SINGLE || expectedType == ARGTYPE_POSITIONAL)
-        return ArgValue(token.getFloatValue());
-      else if (expectString) // Allow float literal as string if needed
-        return ArgValue(token.getStrLitValue());
+    case lexer::TokFloatLit:
+      if (expected_type == argtype_single || expected_type == argtype_positional)
+        return ArgValue(token.get_float_value());
+      else if (expect_string) // allow float literal as string if needed
+        return ArgValue(token.get_str_lit_value());
       break;
-    case lexer::TOK_TRUE:
-      if (expectedType == ARGTYPE_SINGLE || expectedType == ARGTYPE_POSITIONAL)
+    case lexer::TokTrue:
+      if (expected_type == argtype_single || expected_type == argtype_positional)
         return ArgValue(true);
-      else if (expectString)
+      else if (expect_string)
         return ArgValue("true");
       break;
-    case lexer::TOK_FALSE:
-      if (expectedType == ARGTYPE_SINGLE || expectedType == ARGTYPE_POSITIONAL)
+    case lexer::TokFalse:
+      if (expected_type == argtype_single || expected_type == argtype_positional)
         return ArgValue(false);
-      else if (expectString)
+      else if (expect_string)
         return ArgValue("false");
       break;
-    case lexer::TOK_STR_LIT:
-      if (expectString)
-        return ArgValue(token.getStrLitValue());
+    case lexer::TokStrLit:
+      if (expect_string)
+        return ArgValue(token.get_str_lit_value());
       break;
-    case lexer::TOK_ID:
-      if (expectString)
-        return ArgValue(token.getIdValue());
+    case lexer::TokId:
+      if (expect_string)
+        return ArgValue(token.get_id_value());
       break;
     default:
       break;
@@ -1153,51 +1151,51 @@ private:
     return ArgValue();
   }
 
-  // Helper to add the standard help argument
-  void ensureHelpArgument() {
-    bool helpExists = false;
-    for (std::vector<ArgumentDef>::const_iterator it = keywordArgs_.begin();
-         it != keywordArgs_.end(); ++it) {
+  // helper to add the standard help argument
+  void ensure_help_argument() {
+    bool help_exists = false;
+    for (std::vector<ArgumentDef>::const_iterator it = m_kw_args.begin();
+         it != m_kw_args.end(); ++it) {
       if (it->name == "help") {
-        helpExists = true;
+        help_exists = true;
         break;
       }
     }
-    if (!helpExists) {
-      keywordArgs_.push_back(
-          ArgumentDef("help", "-h", "--help", "Show this help message and exit",
-                      ARGTYPE_FLAG, false, ArgValue(false), true));
+    if (!help_exists) {
+      m_kw_args.push_back(
+          ArgumentDef("help", "-h", "--help", "show this help message and exit",
+                      argtype_flag, false, ArgValue(false), true));
     }
   }
 
-  // Check if the command has a specific alias
-  bool hasAlias(const std::string &alias) const {
-    return std::find(aliases_.begin(), aliases_.end(), alias) != aliases_.end();
+  // check if the command has a specific alias
+  bool has_alias(const std::string &alias) const {
+    return std::find(m_aliases.begin(), m_aliases.end(), alias) != m_aliases.end();
   }
 };
 
 class ArgumentParser {
 public:
-  ArgumentParser(std::string progName, std::string description = "")
-      : programName_(progName), programDescription_(description),
-        rootCommand_(std::make_shared<Command>(progName, description)) {}
+  ArgumentParser(std::string prog_name, std::string description = "")
+      : m_program_name(prog_name), m_program_desc(description),
+        m_root_cmd(std::make_shared<Command>(prog_name, description)) {}
 
   ~ArgumentParser() = default;
 
-  // Get a reference to the root command to add arguments or subcommands
-  Command &getRootCommand() { return *rootCommand_; }
+  // get a reference to the root command to add arguments or subcommands
+  Command &get_root_command() { return *m_root_cmd; }
 
-  // Parse command line arguments from main(argc, argv)
+  // parse command line arguments from main(argc, argv)
   ParseResult parse(int argc, char *argv[]) {
     if (argc < 1) {
-      ParseResult errorResult;
-      errorResult.status = ParseResult::PPARSER_STATUS_PARSE_ERROR;
-      errorResult.errorMessage = "Invalid arguments provided (argc < 1)";
-      errorResult.exitCode = 1;
-      return errorResult;
+      ParseResult error_result;
+      error_result.status = ParseResult::ParserStatus_ParseError;
+      error_result.error_message = "invalid arguments provided (argc < 1)";
+      error_result.exit_code = 1;
+      return error_result;
     }
 
-    // Combine args into a single string for the lexer
+    // combine args into a single string for the lexer
     std::stringstream ss;
     for (int i = 1; i < argc; ++i) {
       ss << argv[i] << " ";
@@ -1205,85 +1203,85 @@ public:
     return parse(ss.str());
   }
 
-  // Parse command line arguments from a single string
-  ParseResult parse(const std::string &commandLine) {
-    if (!rootCommand_) {
-      ParseResult errorResult;
-      errorResult.status = ParseResult::PPARSER_STATUS_PARSE_ERROR;
-      errorResult.errorMessage = "ArgumentParser is not initialized correctly.";
-      errorResult.exitCode = 1;
-      return errorResult;
+  // parse command line arguments from a single string
+  ParseResult parse(const std::string &command_line) {
+    if (!m_root_cmd) {
+      ParseResult error_result;
+      error_result.status = ParseResult::ParserStatus_ParseError;
+      error_result.error_message = "ArgumentParser is not initialized correctly.";
+      error_result.exit_code = 1;
+      return error_result;
     }
 
     try {
-      lexer::Source source = lexer::Source::fromString(commandLine, "<cli>");
+      lexer::Src source = lexer::Src::from_string(command_line, "<cli>");
       std::vector<lexer::Token> tokens = lexer::Lexer::tokenize(source);
 
-      // Filter out TOK_EOF at the end
-      if (!tokens.empty() && tokens.back().getKind() == lexer::TOK_EOF) {
+      // filter out TokEof at the end
+      if (!tokens.empty() && tokens.back().get_kind() == lexer::TokEof) {
         tokens.pop_back();
       }
 
-      size_t tokenIndex = 0;
-      ParseResult result = rootCommand_->parse(tokens, tokenIndex, "");
+      size_t token_index = 0;
+      ParseResult result = m_root_cmd->parse(tokens, token_index, "");
 
-      // Return early in the event of an error or help request from the parse
+      // return early in the event of an error or help request from the parse
       // call
-      if (result.status == ParseResult::PPARSER_STATUS_PARSE_ERROR) {
+      if (result.status == ParseResult::ParserStatus_ParseError) {
         return result;
       }
-      if (result.status == ParseResult::PPARSER_STATUS_HELP_REQUESTED) {
+      if (result.status == ParseResult::ParserStatus_HelpRequested) {
         return result;
       }
 
-      // Parsing succeeded, but not all tokens were consumed (and no subcommand
+      // parsing succeeded, but not all tokens were consumed (and no subcommand
       // handled them)
-      if (tokenIndex < tokens.size()) {
-        result.status = ParseResult::PPARSER_STATUS_PARSE_ERROR;
+      if (token_index < tokens.size()) {
+        result.status = ParseResult::ParserStatus_ParseError;
         std::stringstream ss;
-        ss << "Unexpected arguments starting from: ";
-        tokens[tokenIndex].print(ss);
-        result.errorMessage = ss.str();
-        std::cerr << "Error: " << result.errorMessage << "\n\n";
-        // Show root help on unexpected trailing arguments error (to stderr)
-        rootCommand_->generateHelp(std::cerr, "");
-        result.exitCode = 1;
+        ss << "unexpected arguments starting from: ";
+        tokens[token_index].print(ss);
+        result.error_message = ss.str();
+        std::cerr << "error: " << result.error_message << "\n\n";
+        // show root help on unexpected trailing arguments error (to stderr)
+        m_root_cmd->generate_help(std::cerr, "");
+        result.exit_code = 1;
         return result;
       }
 
       return result;
     } catch (const lexer::LexError &e) {
-      std::cerr << "Lexer Error: " << e.what() << std::endl;
-      ParseResult errorResult;
-      errorResult.status = ParseResult::PPARSER_STATUS_PARSE_ERROR;
-      errorResult.errorMessage = e.what();
-      errorResult.exitCode = 1;
-      // Show root help on lexer error (to stderr)
-      if (rootCommand_)
-        rootCommand_->generateHelp(std::cerr, "");
-      return errorResult;
+      std::cerr << "lexer error: " << e.what() << std::endl;
+      ParseResult error_result;
+      error_result.status = ParseResult::ParserStatus_ParseError;
+      error_result.error_message = e.what();
+      error_result.exit_code = 1;
+      // show root help on lexer error (to stderr)
+      if (m_root_cmd)
+        m_root_cmd->generate_help(std::cerr, "");
+      return error_result;
     } catch (const std::exception &e) {
-      // Catch standard exceptions that might arise
-      std::cerr << "Parser Error: " << e.what() << std::endl;
-      ParseResult errorResult;
-      errorResult.status = ParseResult::PPARSER_STATUS_PARSE_ERROR;
-      errorResult.errorMessage = e.what();
-      errorResult.exitCode = 1;
-      // Show root help on general parser error (to stderr)
-      if (rootCommand_)
-        rootCommand_->generateHelp(std::cerr, "");
-      return errorResult;
+      // catch standard exceptions that might arise
+      std::cerr << "parser error: " << e.what() << std::endl;
+      ParseResult error_result;
+      error_result.status = ParseResult::ParserStatus_ParseError;
+      error_result.error_message = e.what();
+      error_result.exit_code = 1;
+      // show root help on general parser error (to stderr)
+      if (m_root_cmd)
+        m_root_cmd->generate_help(std::cerr, "");
+      return error_result;
     }
   }
 
 private:
-  // Prevent copying
+  // prevent copying
   ArgumentParser(const ArgumentParser &);
   ArgumentParser &operator=(const ArgumentParser &);
 
-  std::string programName_;
-  std::string programDescription_;
-  std::shared_ptr<Command> rootCommand_;
+  std::string m_program_name;
+  std::string m_program_desc;
+  std::shared_ptr<Command> m_root_cmd;
 }; // class ArgumentParser
 
 } // namespace pparser
