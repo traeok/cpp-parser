@@ -1,3 +1,27 @@
+/**
+MIT License
+
+Copyright (c) 2025 Trae Yelovich <trae@trae.is>
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all
+copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+SOFTWARE.
+*/
+
 #ifndef PPARSER_HPP
 #define PPARSER_HPP
 
@@ -207,8 +231,8 @@ struct ArgumentDef {
       : name(n), shortName(sn), longName(ln), help(h), type(t), required(req),
         defaultValue(defVal), isHelpFlag(helpFlag) {}
 
-  ArgumentDef() : type(ARGTYPE_FLAG), required(false), isHelpFlag(false) {}
-
+  ArgumentDef()
+      : type(ARGTYPE_FLAG), required(false), isHelpFlag(false) {}
   // Get display name (e.g., "-f, --file")
   std::string getDisplayName() const {
     std::string display;
@@ -393,29 +417,76 @@ public:
                          std::string longName, std::string help,
                          ArgType type = ARGTYPE_FLAG, bool required = false,
                          ArgValue defaultValue = ArgValue()) {
-    // Prevent adding another argument named "help" if it conflicts
+    // Prevent adding another argument named "help" or starting with "no_"
     if (name == "help") {
       throw std::invalid_argument(
           "Argument name 'help' is reserved for the automatic help flag.");
     }
+    if (name.rfind("no_", 0) == 0) {
+       throw std::invalid_argument(
+          "Argument name cannot start with 'no_'. This prefix is reserved for automatic negation flags.");
+    }
+    // Ensure long name doesn't start with --no- if provided manually
+    if (!longName.empty() && longName.rfind("--no-", 0) == 0) {
+         throw std::invalid_argument(
+          "Long name cannot start with '--no-'. This prefix is reserved for automatic negation flags.");
+    }
+
 
     // If it's a flag and the default value is still the initial AVK_NONE,
-    // set the actual default to false.
+    // set the actual default to false. Otherwise, use the provided default.
     ArgValue finalDefaultValue = defaultValue;
     if (type == ARGTYPE_FLAG && defaultValue.isNone()) {
       finalDefaultValue = ArgValue(false);
     }
 
-    // Ensure the new keyword argument is unique
+    // Ensure the new keyword argument name is unique
     auto it = std::find_if(
         keywordArgs_.begin(), keywordArgs_.end(),
         [&name](const ArgumentDef &arg) { return arg.name == name; });
     if (it != keywordArgs_.end()) {
-      throw std::invalid_argument("Argument '" + name + "' already exists.");
+      throw std::invalid_argument("Argument name '" + name + "' already exists.");
+    }
+    // Ensure short/long names are unique across all args (including potential auto-generated ones)
+    for(const auto& existingArg : keywordArgs_) {
+        if (!shortName.empty() && existingArg.shortName == shortName) {
+             throw std::invalid_argument("Short name '" + shortName + "' already exists.");
+        }
+        if (!longName.empty() && existingArg.longName == longName) {
+             throw std::invalid_argument("Long name '" + longName + "' already exists.");
+        }
     }
 
+
+    // Add the primary argument definition
     keywordArgs_.push_back(ArgumentDef(name, shortName, longName, help, type,
                                        required, finalDefaultValue));
+
+    // Check if we need to add an automatic --no-<flag>
+    const bool *defaultBool = finalDefaultValue.getBool();
+    if (type == ARGTYPE_FLAG && defaultBool && *defaultBool == true && !longName.empty() && longName.rfind("--", 0) == 0) {
+        std::string noFlagName = "no_" + name;
+        std::string noFlagLongName = "--no-" + longName.substr(2); // Remove "--" prefix
+        std::string noFlagHelp = "Disable the " + longName + " flag.";
+
+        // Ensure the generated --no- name/longName doesn't conflict
+        auto noIt = std::find_if(
+            keywordArgs_.begin(), keywordArgs_.end(),
+            [&noFlagName](const ArgumentDef &arg) { return arg.name == noFlagName; });
+        if (noIt != keywordArgs_.end()) {
+          throw std::invalid_argument("Automatic negation flag name '" + noFlagName + "' conflicts with an existing argument.");
+        }
+         for(const auto& existingArg : keywordArgs_) {
+            if (existingArg.longName == noFlagLongName) {
+                throw std::invalid_argument("Automatic negation flag long name '" + noFlagLongName + "' conflicts with an existing argument.");
+            }
+        }
+
+        // Add the negation argument definition
+        keywordArgs_.push_back(ArgumentDef(noFlagName, "", noFlagLongName, noFlagHelp,
+                                           ARGTYPE_FLAG, false, ArgValue(false), false, name));
+    }
+
     return *this;
   }
 
