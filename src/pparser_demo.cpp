@@ -59,15 +59,15 @@ int main(int argc, char *argv[]) {
 
   parser.get_root_command().add_keyword_arg("verbose", "-v", "--verbose",
                                         "enable verbose output",
-                                        pparser::argtype_flag);
+                                        pparser::ArgType_Flag);
 
   std::shared_ptr<pparser::Command> add_cmd = std::make_shared<pparser::Command>(
       "add", "add file contents to the index");
   add_cmd
-      ->add_positional_arg("files", "files to add", pparser::argtype_multiple,
+      ->add_positional_arg("files", "files to add", pparser::ArgType_Multiple,
                          true) // required, multiple values
       .add_keyword_arg("force", "-f", "--force", "allow adding ignored files",
-                     pparser::argtype_flag, false)
+                     pparser::ArgType_Flag, false)
       .set_handler(handle_add_command);
 
   std::shared_ptr<pparser::Command> commit_cmd =
@@ -75,11 +75,11 @@ int main(int argc, char *argv[]) {
                                          "record changes to the repository");
   commit_cmd
       ->add_keyword_arg("message", "-m", "--message", "commit message",
-                      pparser::argtype_single, true) // required, single value
+                      pparser::ArgType_Single, true) // required, single value
       .add_keyword_arg("amend", "-a", "--amend", "amend the previous commit",
-                     pparser::argtype_flag, false)
+                     pparser::ArgType_Flag, false)
       .add_keyword_arg("verbose", "-v", "--verbose", "enable verbose output",
-                     pparser::argtype_flag, false)
+                     pparser::ArgType_Flag, false)
       .set_handler(handle_commit_command);
 
   parser.get_root_command().add_command(add_cmd);

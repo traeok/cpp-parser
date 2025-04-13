@@ -207,10 +207,10 @@ struct ArgValue {
 };
 
 enum ArgType {
-  argtype_flag,      // boolean switch (e.g., --verbose)
-  argtype_single,    // expects a single value (e.g., --output file.txt)
-  argtype_multiple,  // expects one or more values (e.g., --input a.txt b.txt)
-  argtype_positional // argument determined by position
+  ArgType_Flag,      // boolean switch (e.g., --verbose)
+  ArgType_Single,    // expects a single value (e.g., --output file.txt)
+  ArgType_Multiple,  // expects one or more values (e.g., --input a.txt b.txt)
+  ArgType_Positional // argument determined by position
 };
 
 struct ArgumentDef {
@@ -224,13 +224,13 @@ struct ArgumentDef {
   bool is_help_flag;       // internal flag to identify the help argument
 
   ArgumentDef(std::string n, std::string sn, std::string ln, std::string h,
-              ArgType t = argtype_flag, bool req = false,
+              ArgType t = ArgType_Flag, bool req = false,
               ArgValue def_val = ArgValue(), bool help_flag = false)
       : name(n), short_name(sn), long_name(ln), help(h), type(t), required(req),
         default_value(def_val), is_help_flag(help_flag) {}
 
   ArgumentDef()
-      : type(argtype_flag), required(false), is_help_flag(false) {}
+      : type(ArgType_Flag), required(false), is_help_flag(false) {}
   // get display name (e.g., "-f, --file")
   std::string get_display_name() const {
     std::string display;
@@ -242,9 +242,9 @@ struct ArgumentDef {
         display += ", ";
       display += long_name;
     }
-    if (type != argtype_flag && type != argtype_positional) {
+    if (type != ArgType_Flag && type != ArgType_Positional) {
       display += " <value>";
-      if (type == argtype_multiple) {
+      if (type == ArgType_Multiple) {
         display += "...";
       }
     }
@@ -269,8 +269,8 @@ public:
 
   // map storing parsed keyword argument values (name -> value)
   std::map<std::string, ArgValue> keyword_values;
-  // vector storing parsed positional argument values in order
-  std::vector<ArgValue> positional_values;
+  // map storing parsed positional argument values (name -> value)
+  std::map<std::string, ArgValue> positional_values;
 
   ParseResult() : status(ParserStatus_Success), exit_code(0) {}
 
@@ -363,37 +363,95 @@ public:
     return ptr ? *ptr : std::vector<std::string>();
   }
 
-  // getters for positional args by index
-  const bool *get_pos_arg_bool(size_t index) const {
-    if (index < positional_values.size()) {
-      return positional_values[index].get_bool();
+  // --- Positional Argument Getters (by Name) ---
+
+  // check if a positional arg was provided (doesn't check type)
+  bool has_pos_arg(const std::string &name) const {
+    return positional_values.find(name) != positional_values.end();
+  }
+
+  // getters returning pointers, nullptr if missing or wrong type
+  const bool *get_pos_arg_bool(const std::string &name) const {
+    std::map<std::string, ArgValue>::const_iterator it =
+        positional_values.find(name);
+    if (it != positional_values.end()) {
+      return it->second.get_bool();
     }
     return nullptr;
   }
-  const long long *get_pos_arg_int(size_t index) const {
-    if (index < positional_values.size()) {
-      return positional_values[index].get_int();
+
+  const long long *get_pos_arg_int(const std::string &name) const {
+    std::map<std::string, ArgValue>::const_iterator it =
+        positional_values.find(name);
+    if (it != positional_values.end()) {
+      return it->second.get_int();
     }
     return nullptr;
   }
-  const double *get_pos_arg_double(size_t index) const {
-    if (index < positional_values.size()) {
-      return positional_values[index].get_double();
+
+  const double *get_pos_arg_double(const std::string &name) const {
+    std::map<std::string, ArgValue>::const_iterator it =
+        positional_values.find(name);
+    if (it != positional_values.end()) {
+      return it->second.get_double();
     }
     return nullptr;
   }
-  const std::string *get_pos_arg_string(size_t index) const {
-    if (index < positional_values.size()) {
-      return positional_values[index].get_string();
+
+  const std::string *get_pos_arg_string(const std::string &name) const {
+    std::map<std::string, ArgValue>::const_iterator it =
+        positional_values.find(name);
+    if (it != positional_values.end()) {
+      return it->second.get_string();
     }
     return nullptr;
   }
+
   const std::vector<std::string> *
-  get_pos_arg_list(size_t index) const {
-    if (index < positional_values.size()) {
-      return positional_values[index].get_string_vector();
+  get_pos_arg_list(const std::string &name) const {
+    std::map<std::string, ArgValue>::const_iterator it =
+        positional_values.find(name);
+    if (it != positional_values.end()) {
+      return it->second.get_string_vector();
     }
     return nullptr;
+  }
+
+  // getters returning value or a default if missing/wrong type
+  bool find_pos_arg_bool(const std::string &name,
+                                  bool default_value = false) const {
+    const bool *ptr = get_pos_arg_bool(name);
+    return ptr ? *ptr : default_value;
+  }
+
+  long long find_pos_arg_int(const std::string &name,
+                                      long long default_value = 0) const {
+    const long long *ptr = get_pos_arg_int(name);
+    return ptr ? *ptr : default_value;
+  }
+
+  double find_pos_arg_double(const std::string &name,
+                                      double default_value = 0.0) const {
+    const double *ptr = get_pos_arg_double(name);
+    return ptr ? *ptr : default_value;
+  }
+
+  std::string
+  find_pos_arg_string(const std::string &name,
+                               const std::string &default_value = "") const {
+    std::map<std::string, ArgValue>::const_iterator it =
+        positional_values.find(name);
+    if (it != positional_values.end()) {
+      return it->second.get_string_value(default_value);
+    }
+    return default_value;
+  }
+
+  // returns a copy of the vector or an empty vector as default
+  std::vector<std::string>
+  find_pos_arg_list(const std::string &name) const {
+    const std::vector<std::string> *ptr = get_pos_arg_list(name);
+    return ptr ? *ptr : std::vector<std::string>();
   }
 };
 
@@ -413,7 +471,7 @@ public:
   // add a keyword/option argument (e.g., --file, -f)
   Command &add_keyword_arg(std::string name, std::string short_name,
                          std::string long_name, std::string help,
-                         ArgType type = argtype_flag, bool required = false,
+                         ArgType type = ArgType_Flag, bool required = false,
                          ArgValue default_value = ArgValue()) {
     // prevent adding another argument named "help" or starting with "no_"
     if (name == "help") {
@@ -434,7 +492,7 @@ public:
     // if it's a flag and the default value is still the initial avk_none,
     // set the actual default to false. otherwise, use the provided default.
     ArgValue final_default_value = default_value;
-    if (type == argtype_flag && default_value.is_none()) {
+    if (type == ArgType_Flag && default_value.is_none()) {
       final_default_value = ArgValue(false);
     }
 
@@ -462,7 +520,7 @@ public:
 
     // check if we need to add an automatic --no-<flag>
     const bool *default_bool = final_default_value.get_bool();
-    if (type == argtype_flag && default_bool && *default_bool == true && !long_name.empty() && long_name.rfind("--", 0) == 0) {
+    if (type == ArgType_Flag && default_bool && *default_bool == true && !long_name.empty() && long_name.rfind("--", 0) == 0) {
         std::string no_flag_name = "no_" + name;
         std::string no_flag_long_name = "--no-" + long_name.substr(2); // remove "--" prefix
         std::string no_flag_help = "disable the " + long_name + " flag.";
@@ -482,7 +540,7 @@ public:
 
         // add the negation argument definition
         m_kw_args.push_back(ArgumentDef(no_flag_name, "", no_flag_long_name, no_flag_help,
-                                           argtype_flag, false, ArgValue(false), false));
+                                           ArgType_Flag, false, ArgValue(false), false));
     }
 
     return *this;
@@ -490,9 +548,9 @@ public:
 
   // add a positional argument (defined by order)
   Command &add_positional_arg(std::string name, std::string help,
-                            ArgType type = argtype_single, bool required = true,
+                            ArgType type = ArgType_Single, bool required = true,
                             ArgValue default_value = ArgValue()) {
-    if (type == argtype_flag) {
+    if (type == ArgType_Flag) {
       throw std::invalid_argument("positional arguments cannot be flags.");
     }
 
@@ -505,7 +563,7 @@ public:
     }
 
     m_pos_args.push_back(ArgumentDef(
-        name, "", "", help, argtype_positional, required, default_value));
+        name, "", "", help, ArgType_Positional, required, default_value));
     m_pos_args.back().type = type;
     return *this;
   }
@@ -637,7 +695,7 @@ public:
             }
 
             // ensure combined flags are actually boolean flags
-            if (matched_arg->type != argtype_flag) {
+            if (matched_arg->type != ArgType_Flag) {
               result.status = ParseResult::ParserStatus_ParseError;
               result.error_message = "option -" + single_flag_char +
                                     " requires a value and cannot be combined.";
@@ -680,7 +738,7 @@ public:
         keyword_args_seen[matched_arg->name] = true;
 
         // handle argument value based on type
-        if (matched_arg->type == argtype_flag) {
+        if (matched_arg->type == ArgType_Flag) {
           result.keyword_values[matched_arg->name] = ArgValue(true);
         } else {
           // check if next token exists and is not another flag
@@ -708,10 +766,10 @@ public:
             return result;
           }
 
-          if (matched_arg->type == argtype_single) {
+          if (matched_arg->type == ArgType_Single) {
             result.keyword_values[matched_arg->name] = parsed_value;
             current_token_index++;
-          } else if (matched_arg->type == argtype_multiple) {
+          } else if (matched_arg->type == ArgType_Multiple) {
             // ensure value type is string for multiple
             if (!parsed_value.is_string()) {
               result.status = ParseResult::ParserStatus_ParseError;
@@ -751,7 +809,7 @@ public:
                          lexer::TokFlagLong) {
                 const lexer::Token &next_value_token = tokens[current_token_index];
                 ArgValue next_parsed_value =
-                    parse_token_value(next_value_token, argtype_single);
+                    parse_token_value(next_value_token, ArgType_Single);
                 const std::string *next_val_str_ptr = next_parsed_value.get_string();
                 if (next_val_str_ptr) {
                   vec->push_back(*next_val_str_ptr);
@@ -832,11 +890,11 @@ public:
           return result;
         }
 
-        if (pos_arg_def.type == argtype_single) {
-          result.positional_values.push_back(parsed_value);
+        if (pos_arg_def.type == ArgType_Single) {
+          result.positional_values[pos_arg_def.name] = parsed_value;
           current_token_index++;
           current_positional_arg_index++;
-        } else if (pos_arg_def.type == argtype_multiple) {
+        } else if (pos_arg_def.type == ArgType_Multiple) {
           // ensure value type is string for multiple positional
           if (!parsed_value.is_string()) {
             result.status = ParseResult::ParserStatus_ParseError;
@@ -865,7 +923,7 @@ public:
             const lexer::Token &next_value_token = tokens[current_token_index];
             // parse subsequent as strings
             ArgValue next_parsed_value =
-                parse_token_value(next_value_token, argtype_single);
+                parse_token_value(next_value_token, ArgType_Single);
             const std::string *next_val_str_ptr = next_parsed_value.get_string();
             if (next_val_str_ptr) {
               values.push_back(*next_val_str_ptr);
@@ -874,11 +932,10 @@ public:
               break;
             }
           }
-          // add the vector to positional args using ArgValue constructor
-          result.positional_values.push_back(ArgValue(values));
+          // add the vector to positional args map using ArgValue constructor
+          result.positional_values[pos_arg_def.name] = ArgValue(values);
           current_positional_arg_index++;
         }
-        // todo: add validation for number of positional args
       } else {
         // unexpected token (neither flag, subcommand, nor expected positional)
         result.status = ParseResult::ParserStatus_ParseError;
@@ -928,7 +985,7 @@ public:
           return result;
         } else {
           // add default value for optional missing positional args
-          result.positional_values.push_back(pos_arg_def.default_value);
+          result.positional_values[pos_arg_def.name] = pos_arg_def.default_value;
         }
       }
     }
@@ -964,7 +1021,7 @@ public:
       positional_usage += (pos_arg.required ? "<" : "[");
       positional_usage += pos_arg.name;
       positional_usage += (pos_arg.required ? ">" : "]");
-      if (pos_arg.type == argtype_multiple)
+      if (pos_arg.type == ArgType_Multiple)
         positional_usage += "...";
     }
 
@@ -1108,30 +1165,30 @@ private:
 
     // allow broader range of tokens to be interpreted as strings if expected
     bool expect_string =
-        (expected_type == argtype_single || expected_type == argtype_multiple ||
-         expected_type == argtype_positional);
+        (expected_type == ArgType_Single || expected_type == ArgType_Multiple ||
+         expected_type == ArgType_Positional);
 
     switch (kind) {
     case lexer::TokIntLit:
-      if (expected_type == argtype_single || expected_type == argtype_positional)
+      if (expected_type == ArgType_Single || expected_type == ArgType_Positional)
         return ArgValue(token.get_int_value());
       else if (expect_string) // allow int literal as string if needed
         return ArgValue(token.get_str_lit_value());
       break;
     case lexer::TokFloatLit:
-      if (expected_type == argtype_single || expected_type == argtype_positional)
+      if (expected_type == ArgType_Single || expected_type == ArgType_Positional)
         return ArgValue(token.get_float_value());
       else if (expect_string) // allow float literal as string if needed
         return ArgValue(token.get_str_lit_value());
       break;
     case lexer::TokTrue:
-      if (expected_type == argtype_single || expected_type == argtype_positional)
+      if (expected_type == ArgType_Single || expected_type == ArgType_Positional)
         return ArgValue(true);
       else if (expect_string)
         return ArgValue("true");
       break;
     case lexer::TokFalse:
-      if (expected_type == argtype_single || expected_type == argtype_positional)
+      if (expected_type == ArgType_Single || expected_type == ArgType_Positional)
         return ArgValue(false);
       else if (expect_string)
         return ArgValue("false");
@@ -1164,7 +1221,7 @@ private:
     if (!help_exists) {
       m_kw_args.push_back(
           ArgumentDef("help", "-h", "--help", "show this help message and exit",
-                      argtype_flag, false, ArgValue(false), true));
+                      ArgType_Flag, false, ArgValue(false), true));
     }
   }
 
