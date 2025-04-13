@@ -29,6 +29,7 @@ SOFTWARE.
 #include <algorithm>
 #include <cstdlib>
 #include <cstring>
+#include <iomanip>
 #include <iostream>
 #include <map>
 #include <memory>
@@ -45,16 +46,16 @@ class ParseResult;
 struct ArgValue;
 
 struct ArgValue {
-  enum arg_value_kind {
-    avk_none,
-    avk_bool,
-    avk_int,
-    avk_double,
-    avk_string,
-    avk_string_vector
+  enum ValueKind {
+    ValueKind_None,
+    ValueKind_Bool,
+    ValueKind_Int,
+    ValueKind_Double,
+    ValueKind_String,
+    ValueKind_List
   };
 
-  arg_value_kind kind;
+  ValueKind kind;
   union {
     bool b;
     long long i; // assuming long long is available as extension, else use long
@@ -65,29 +66,29 @@ struct ArgValue {
   } value;
 
   // default constructor
-  ArgValue() : kind(avk_none) {
+  ArgValue() : kind(ValueKind_None) {
     // initialize one member to avoid undefined state, though not strictly
     // necessary for none
     value.i = 0;
   }
 
-  explicit ArgValue(bool val) : kind(avk_bool) { value.b = val; }
-  explicit ArgValue(long long val) : kind(avk_int) { value.i = val; }
-  explicit ArgValue(double val) : kind(avk_double) { value.d = val; }
+  explicit ArgValue(bool val) : kind(ValueKind_Bool) { value.b = val; }
+  explicit ArgValue(long long val) : kind(ValueKind_Int) { value.i = val; }
+  explicit ArgValue(double val) : kind(ValueKind_Double) { value.d = val; }
   // note: takes ownership of new string
-  explicit ArgValue(const std::string &val) : kind(avk_string) {
+  explicit ArgValue(const std::string &val) : kind(ValueKind_String) {
     value.s = new std::string(val);
   }
   // note: takes ownership of new vector
   explicit ArgValue(const std::vector<std::string> &val)
-      : kind(avk_string_vector) {
+      : kind(ValueKind_List) {
     value.sv = new std::vector<std::string>(val);
   }
 
   // cleanup pointer members
   ~ArgValue() { clear(); }
 
-  ArgValue(const ArgValue &other) : kind(avk_none) { copy_from(other); }
+  ArgValue(const ArgValue &other) : kind(ValueKind_None) { copy_from(other); }
   ArgValue &operator=(const ArgValue &other) {
     if (this != &other) {
       clear();
@@ -98,14 +99,14 @@ struct ArgValue {
 
   // helper to clear existing data (delete pointers)
   void clear() {
-    if (kind == avk_string) {
+    if (kind == ValueKind_String) {
       delete value.s;
       value.s = nullptr;
-    } else if (kind == avk_string_vector) {
+    } else if (kind == ValueKind_List) {
       delete value.sv;
       value.sv = nullptr;
     }
-    kind = avk_none;
+    kind = ValueKind_None;
     value.i = 0;
   }
 
@@ -113,22 +114,22 @@ struct ArgValue {
   void copy_from(const ArgValue &other) {
     kind = other.kind;
     switch (kind) {
-    case avk_none:
+    case ValueKind_None:
       value.i = 0;
       break;
-    case avk_bool:
+    case ValueKind_Bool:
       value.b = other.value.b;
       break;
-    case avk_int:
+    case ValueKind_Int:
       value.i = other.value.i;
       break;
-    case avk_double:
+    case ValueKind_Double:
       value.d = other.value.d;
       break;
-    case avk_string:
+    case ValueKind_String:
       value.s = other.value.s ? new std::string(*other.value.s) : nullptr;
       break;
-    case avk_string_vector:
+    case ValueKind_List:
       value.sv = other.value.sv ? new std::vector<std::string>(*other.value.sv)
                                 : nullptr;
       break;
@@ -136,12 +137,12 @@ struct ArgValue {
   }
 
   // type checkers
-  bool is_none() const { return kind == avk_none; }
-  bool is_bool() const { return kind == avk_bool; }
-  bool is_int() const { return kind == avk_int; }
-  bool is_double() const { return kind == avk_double; }
-  bool is_string() const { return kind == avk_string; }
-  bool is_string_vector() const { return kind == avk_string_vector; }
+  bool is_none() const { return kind == ValueKind_None; }
+  bool is_bool() const { return kind == ValueKind_Bool; }
+  bool is_int() const { return kind == ValueKind_Int; }
+  bool is_double() const { return kind == ValueKind_Double; }
+  bool is_string() const { return kind == ValueKind_String; }
+  bool is_string_vector() const { return kind == ValueKind_List; }
 
   // getters (unsafe, check type first or use safe getters below)
   bool get_bool_unsafe() const { return value.b; }
@@ -157,18 +158,18 @@ struct ArgValue {
   }
 
   // safe getters (returns a pointer; nullptr if wrong type/unset)
-  const bool *get_bool() const { return kind == avk_bool ? &value.b : nullptr; }
+  const bool *get_bool() const { return kind == ValueKind_Bool ? &value.b : nullptr; }
   const long long *get_int() const {
-    return kind == avk_int ? &value.i : nullptr;
+    return kind == ValueKind_Int ? &value.i : nullptr;
   }
   const double *get_double() const {
-    return kind == avk_double ? &value.d : nullptr;
+    return kind == ValueKind_Double ? &value.d : nullptr;
   }
   const std::string *get_string() const {
-    return kind == avk_string ? value.s : nullptr;
+    return kind == ValueKind_String ? value.s : nullptr;
   }
   const std::vector<std::string> *get_string_vector() const {
-    return kind == avk_string_vector ? value.sv : nullptr;
+    return kind == ValueKind_List ? value.sv : nullptr;
   }
   std::string get_string_value(const std::string &default_val = "") const {
     const std::string *ptr = get_string();
@@ -177,22 +178,22 @@ struct ArgValue {
 
   void print(std::ostream &os) const {
     switch (kind) {
-    case avk_none:
+    case ValueKind_None:
       os << "<none>";
       break;
-    case avk_bool:
+    case ValueKind_Bool:
       os << (value.b ? "true" : "false");
       break;
-    case avk_int:
+    case ValueKind_Int:
       os << value.i;
       break;
-    case avk_double:
+    case ValueKind_Double:
       os << value.d;
       break;
-    case avk_string:
+    case ValueKind_String:
       os << (value.s ? *value.s : "<invalid_string>");
       break;
-    case avk_string_vector: {
+    case ValueKind_List: {
       os << "[";
       if (value.sv) {
         for (size_t j = 0; j < value.sv->size(); ++j) {
@@ -628,7 +629,7 @@ public:
   const std::string &get_name() const { return m_name; }
   const std::string &get_help() const { return m_help; }
   const std::map<std::string, std::shared_ptr<Command>> &
-  get_subcommands() const {
+  get_commands() const {
     return m_commands;
   }
   const std::vector<ArgumentDef> &get_keyword_args() const {
@@ -1001,7 +1002,41 @@ public:
 
   // generate help text for this command and its subcommands
   void generate_help(std::ostream &os,
-                    const std::string &command_path_prefix) const {
+                     const std::string &command_path_prefix) const {
+    // calculate max widths for alignment
+    size_t max_pos_arg_width = 0;
+    for (const auto &arg : m_pos_args) {
+      max_pos_arg_width = std::max(max_pos_arg_width, arg.name.length());
+    }
+
+    size_t max_kw_arg_width = 0;
+    for (const auto &arg : m_kw_args) {
+      max_kw_arg_width =
+          std::max(max_kw_arg_width, arg.get_display_name().length());
+    }
+
+    size_t max_cmd_width = 0;
+    for (const auto &pair : m_commands) {
+      size_t current_cmd_width = pair.first.length();
+      const auto &aliases = pair.second->get_aliases();
+      if (!aliases.empty()) {
+        current_cmd_width += 3; // for " (" and ")"
+        for (size_t i = 0; i < aliases.size(); ++i) {
+          current_cmd_width += aliases[i].length();
+          if (i < aliases.size() - 1) {
+            current_cmd_width += 2; // for ", "
+          }
+        }
+      }
+      max_cmd_width = std::max(max_cmd_width, current_cmd_width);
+    }
+
+    // add a buffer for spacing
+    const size_t width_buffer = 2;
+    max_pos_arg_width += width_buffer;
+    max_kw_arg_width += width_buffer;
+    max_cmd_width += width_buffer;
+
     std::string full_command_path =
         command_path_prefix.empty() ? m_name : command_path_prefix + m_name;
     if (!command_path_prefix.empty() &&
@@ -1011,7 +1046,7 @@ public:
       full_command_path = command_path_prefix + m_name;
     }
 
-    os << "usage: " << full_command_path;
+    os << "Usage: " << full_command_path;
     // collect display names for positional args
     std::string positional_usage;
     for (std::vector<ArgumentDef>::const_iterator it = m_pos_args.begin();
@@ -1040,12 +1075,13 @@ public:
 
     // info about positional arguments
     if (!m_pos_args.empty()) {
-      os << "arguments:\n";
+      os << "Arguments:\n";
       for (std::vector<ArgumentDef>::const_iterator it =
                m_pos_args.begin();
-           it != m_pos_args.end(); ++it) {
+            it != m_pos_args.end(); ++it) {
         const ArgumentDef &arg = *it;
-        os << "  " << arg.name << "\t" << arg.help;
+        os << "  " << std::left << std::setw(max_pos_arg_width) << arg.name
+           << arg.help;
         // check default value is not none
         if (!arg.default_value.is_none()) {
           os << " (default: ";
@@ -1061,11 +1097,12 @@ public:
 
     // info about keyword arguments
     if (!m_kw_args.empty()) {
-      os << "options:\n";
+      os << "Options:\n";
       for (std::vector<ArgumentDef>::const_iterator it = m_kw_args.begin();
-           it != m_kw_args.end(); ++it) {
+            it != m_kw_args.end(); ++it) {
         const ArgumentDef &arg = *it;
-        os << "  " << arg.get_display_name() << "\t" << arg.help;
+        os << "  " << std::left << std::setw(max_kw_arg_width)
+           << arg.get_display_name() << arg.help;
         if (!arg.default_value.is_none()) {
           // only show non-default bools (true) or non-bool defaults
           const bool *b_val = arg.default_value.get_bool();
@@ -1085,23 +1122,26 @@ public:
 
     // available subcommands
     if (!m_commands.empty()) {
-      os << "commands:\n";
+      os << "Commands:\n";
       for (std::map<std::string, std::shared_ptr<Command>>::const_iterator it =
                m_commands.begin();
-           it != m_commands.end(); ++it) {
-        os << "  " << it->first; // print the main command name
-        // print aliases if any exist
+            it != m_commands.end(); ++it) {
+        std::string cmd_display = it->first;
         const auto &aliases = it->second->get_aliases();
         if (!aliases.empty()) {
-          os << " (" << aliases[0];
-          for (size_t i = 1; i < aliases.size(); ++i) {
-            os << ", " << aliases[i];
+          cmd_display += " (";
+          for (size_t i = 0; i < aliases.size(); ++i) {
+            cmd_display += aliases[i];
+            if (i < aliases.size() - 1) {
+              cmd_display += ", ";
+            }
           }
-          os << ")";
+          cmd_display += ")";
         }
-        os << "\t" << it->second->get_help() << "\n";
+        os << "  " << std::left << std::setw(max_cmd_width) << cmd_display
+           << it->second->get_help() << "\n";
       }
-      os << "\n_use '" << full_command_path
+      os << "\nRun '" << full_command_path
          << " <command> --help' for more information on a command.\n";
     }
   }

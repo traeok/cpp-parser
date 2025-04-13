@@ -7,10 +7,9 @@
 int handle_add_command(const pparser::ParseResult &result) {
   std::cout << "executing command: " << result.command_path << std::endl;
 
-  const std::vector<std::string> *files = result.get_pos_arg_list(
-      0); // 'files' is the first positional arg
-  const bool *force =
-      result.get_kw_arg_bool("force"); // optional '--force' flag
+  const std::vector<std::string> *files = result.get_pos_arg_list("files");
+  const auto force =
+      result.find_kw_arg_bool("force"); // optional '--force' flag
 
   if (files) {
     std::cout << "  files to add: ";
@@ -20,7 +19,7 @@ int handle_add_command(const pparser::ParseResult &result) {
     std::cout << std::endl;
   }
 
-  std::cout << "  force flag is " + std::string(*force ? "set." : "not set.")
+  std::cout << "  force flag is " + std::string(force ? "set." : "not set.")
             << std::endl;
 
   return 0;
