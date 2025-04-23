@@ -856,7 +856,7 @@ private:
            c == '_' || c == '/';
   }
   static bool is_ident_cont(char c) {
-    return is_ident_start(c) || is_ascii_dec_digit(c) || c == '.' || c == '/';
+    return is_ident_start(c) || is_ascii_dec_digit(c) || c == '.' || c == '/' || c == '*';
   }
 
   // combined digit check for lex_number
@@ -1475,8 +1475,7 @@ private:
 
     // read the identifier part of the flag name
     // allow '-' within long flag names? e.g. --my-flag
-    // current is_ident_cont doesn't include '-', adjust if needed.
-    while (is_ident_cont(current())) { // add || current() == '-' if desired
+    while (is_ident_cont(current()) || current() == '-') {
       next();
     }
     size_t name_end_pos = m_iter.position();

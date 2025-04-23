@@ -56,30 +56,56 @@ int main(int argc, char *argv[]) {
   pparser::ArgumentParser parser("git_demo",
                                  "a simple git-like command line demo.");
 
-  parser.get_root_command().add_keyword_arg("verbose", "-v", "--verbose",
-                                        "enable verbose output",
-                                        pparser::ArgType_Flag);
+  {
+    std::vector<std::string> verbose_aliases;
+    verbose_aliases.push_back("-v");
+    parser.get_root_command().add_keyword_arg(
+        "verbose",
+        verbose_aliases,
+        "enable verbose output",
+        pparser::ArgType_Flag);
+  }
 
   std::shared_ptr<pparser::Command> add_cmd = std::make_shared<pparser::Command>(
       "add", "add file contents to the index");
-  add_cmd
-      ->add_positional_arg("files", "files to add", pparser::ArgType_Multiple,
-                         true) // required, multiple values
-      .add_keyword_arg("force", "-f", "--force", "allow adding ignored files",
-                     pparser::ArgType_Flag, false)
-      .set_handler(handle_add_command);
+  {
+    std::vector<std::string> force_aliases;
+    force_aliases.push_back("-f");
+    add_cmd
+        ->add_positional_arg("files", "files to add", pparser::ArgType_Multiple,
+                           true) // required, multiple values
+        .add_keyword_arg("force",
+                         force_aliases,
+                         "allow adding ignored files",
+                         pparser::ArgType_Flag, false)
+        .set_handler(handle_add_command);
+  }
 
   std::shared_ptr<pparser::Command> commit_cmd =
       std::make_shared<pparser::Command>("commit",
                                          "record changes to the repository");
-  commit_cmd
-      ->add_keyword_arg("message", "-m", "--message", "commit message",
-                      pparser::ArgType_Single, true) // required, single value
-      .add_keyword_arg("amend", "-a", "--amend", "amend the previous commit",
-                     pparser::ArgType_Flag, false)
-      .add_keyword_arg("verbose", "-v", "--verbose", "enable verbose output",
-                     pparser::ArgType_Flag, false)
-      .set_handler(handle_commit_command);
+  {
+    std::vector<std::string> message_aliases;
+    message_aliases.push_back("-m");
+    std::vector<std::string> amend_aliases;
+    amend_aliases.push_back("-a");
+    std::vector<std::string> verbose_aliases2;
+    verbose_aliases2.push_back("-v");
+    commit_cmd
+        ->add_keyword_arg("message",
+                          message_aliases,
+                          "commit message",
+                          pparser::ArgType_Single, true) // required, single value
+        .add_keyword_arg("amend",
+                         amend_aliases,
+                         "amend the previous commit",
+                         pparser::ArgType_Flag, false)
+        .add_keyword_arg("verbose",
+                         verbose_aliases2,
+                         "enable verbose output",
+                         pparser::ArgType_Flag, false)
+        .set_handler(handle_commit_command);
+  }
 
   parser.get_root_command().add_command(add_cmd);
   parser.get_root_command().add_command(commit_cmd);

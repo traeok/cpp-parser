@@ -246,32 +246,44 @@ enum ArgType {
 };
 
 struct ArgumentDef {
-  std::string name;       // internal name to access the parsed value
-  std::string short_name; // short flag (e.g., "-f") - optional
-  std::string long_name;  // long flag (e.g., "--file") - optional
-  std::string help;       // help text description
-  ArgType type;           // type of argument (flag, single, etc.)
-  bool required;          // is this argument mandatory?
+  std::string name; // internal name to access the parsed value
+  std::vector<std::string> aliases; // all flag aliases (e.g., "-f", "--file", "--alias")
+  std::string help; // help text description
+  ArgType type; // type of argument (flag, single, etc.)
+  bool required; // is this argument mandatory?
   ArgValue default_value; // default value if argument is not provided
-  bool is_help_flag;      // internal flag to identify the help argument
+  bool is_help_flag; // internal flag to identify the help argument
 
-  ArgumentDef(std::string n, std::string sn, std::string ln, std::string h,
+  // Main constructor: accepts a vector of aliases
+  ArgumentDef(std::string n, const std::vector<std::string> &als, std::string h,
               ArgType t = ArgType_Flag, bool req = false,
               ArgValue def_val = ArgValue(), bool help_flag = false)
-      : name(n), short_name(sn), long_name(ln), help(h), type(t), required(req),
+      : name(n), aliases(als), help(h), type(t), required(req),
         default_value(def_val), is_help_flag(help_flag) {}
 
+  // Convenience constructor: single alias
+  ArgumentDef(std::string n, std::string alias, std::string h,
+              ArgType t = ArgType_Flag, bool req = false,
+              ArgValue def_val = ArgValue(), bool help_flag = false)
+      : name(n), help(h), type(t), required(req),
+        default_value(def_val), is_help_flag(help_flag) {
+    if (!alias.empty()) {
+      aliases.push_back(alias);
+    }
+  }
+
+  // Default constructor
   ArgumentDef() : type(ArgType_Flag), required(false), is_help_flag(false) {}
-  // get display name (e.g., "-f, --file")
+
+  // get display name (e.g., "-f, --file, --alias")
   std::string get_display_name() const {
     std::string display;
-    if (!short_name.empty()) {
-      display += short_name;
-    }
-    if (!long_name.empty()) {
-      if (!display.empty())
-        display += ", ";
-      display += long_name;
+    for (size_t i = 0; i < aliases.size(); ++i) {
+      if (!aliases[i].empty()) {
+        if (!display.empty())
+          display += ", ";
+        display += aliases[i];
+      }
     }
     if (type != ArgType_Flag && type != ArgType_Positional) {
       display += " <value>";
@@ -496,8 +508,10 @@ public:
   ~Command() { m_commands.clear(); }
 
   // add a keyword/option argument (e.g., --file, -f)
-  Command &add_keyword_arg(std::string name, std::string short_name,
-                           std::string long_name, std::string help,
+  // New add_keyword_arg: accepts a vector of aliases for maximum flexibility
+  Command &add_keyword_arg(std::string name,
+                           const std::vector<std::string> &aliases,
+                           std::string help,
                            ArgType type = ArgType_Flag, bool required = false,
                            ArgValue default_value = ArgValue()) {
     // prevent adding another argument named "help" or starting with "no_"
@@ -510,11 +524,12 @@ public:
           "argument name cannot start with 'no_'. this prefix is reserved for "
           "automatic negation flags.");
     }
-    // ensure long name doesn't start with --no- if provided manually
-    if (!long_name.empty() && long_name.rfind("--no-", 0) == 0) {
-      throw std::invalid_argument(
-          "long name cannot start with '--no-'. this prefix is reserved for "
-          "automatic negation flags.");
+    for (size_t i = 0; i < aliases.size(); ++i) {
+      if (!aliases[i].empty() && aliases[i].find("--no-") == 0) {
+        throw std::invalid_argument(
+            "alias cannot start with '--no-'. this prefix is reserved for "
+            "automatic negation flags.");
+      }
     }
 
     // if it's a flag and the default value is still the initial avk_none,
@@ -534,34 +549,40 @@ public:
       throw std::invalid_argument("argument name '" + name +
                                   "' already exists.");
     }
-    // ensure short/long names are unique across all args (including potential
-    // auto-generated ones)
+    // ensure aliases are unique across all args (including potential auto-generated ones)
     for (std::vector<ArgumentDef>::const_iterator it = m_kw_args.begin(); it != m_kw_args.end(); ++it) {
       const ArgumentDef &existing_arg = *it;
-      if (!short_name.empty() && existing_arg.short_name == short_name) {
-        throw std::invalid_argument("short name '" + short_name +
-                                    "' already exists.");
-      }
-      if (!long_name.empty() && existing_arg.long_name == long_name) {
-        throw std::invalid_argument("long name '" + long_name +
-                                    "' already exists.");
+      for (size_t i = 0; i < aliases.size(); ++i) {
+        for (size_t j = 0; j < existing_arg.aliases.size(); ++j) {
+          if (!aliases[i].empty() && aliases[i] == existing_arg.aliases[j]) {
+            throw std::invalid_argument("alias '" + aliases[i] +
+                                        "' already exists.");
+          }
+        }
       }
     }
 
     // add the primary argument definition
-    m_kw_args.push_back(ArgumentDef(name, short_name, long_name, help, type,
+    m_kw_args.push_back(ArgumentDef(name, aliases, help, type,
                                     required, final_default_value));
 
     // check if we need to add an automatic --no-<flag>
     const bool *default_bool = final_default_value.get_bool();
+    // Only add --no-<flag> for boolean flags with a true default and a long-style alias
+    std::string long_alias;
+    for (size_t i = 0; i < aliases.size(); ++i) {
+      if (aliases[i].length() > 2 && aliases[i].substr(0, 2) == "--") {
+        long_alias = aliases[i];
+        break;
+      }
+    }
     if (type == ArgType_Flag && default_bool && *default_bool == true &&
-        !long_name.empty() && long_name.rfind("--", 0) == 0) {
+        !long_alias.empty()) {
       std::string no_flag_name = "no_" + name;
-      std::string no_flag_long_name =
-          "--no-" + long_name.substr(2); // remove "--" prefix
-      std::string no_flag_help = "disable the " + long_name + " flag.";
+      std::string no_flag_long_alias = "--no-" + long_alias.substr(2); // remove "--" prefix
+      std::string no_flag_help = "disable the " + long_alias + " flag.";
 
-      // ensure the generated --no- name/long_name doesn't conflict
+      // ensure the generated --no- name/alias doesn't conflict
       std::vector<ArgumentDef>::iterator no_it = m_kw_args.begin();
       for (; no_it != m_kw_args.end(); ++no_it) {
         if (no_it->name == no_flag_name)
@@ -574,15 +595,19 @@ public:
       }
       for (std::vector<ArgumentDef>::const_iterator it2 = m_kw_args.begin(); it2 != m_kw_args.end(); ++it2) {
         const ArgumentDef &existing_arg = *it2;
-        if (existing_arg.long_name == no_flag_long_name) {
-          throw std::invalid_argument("automatic negation flag long name '" +
-                                      no_flag_long_name +
-                                      "' conflicts with an existing argument.");
+        for (size_t j = 0; j < existing_arg.aliases.size(); ++j) {
+          if (existing_arg.aliases[j] == no_flag_long_alias) {
+            throw std::invalid_argument("automatic negation flag alias '" +
+                                        no_flag_long_alias +
+                                        "' conflicts with an existing argument.");
+          }
         }
       }
 
       // add the negation argument definition
-      m_kw_args.push_back(ArgumentDef(no_flag_name, "", no_flag_long_name,
+      std::vector<std::string> no_flag_aliases;
+      no_flag_aliases.push_back(no_flag_long_alias);
+      m_kw_args.push_back(ArgumentDef(no_flag_name, no_flag_aliases,
                                       no_flag_help, ArgType_Flag, false,
                                       ArgValue(false), false));
     }
@@ -609,7 +634,8 @@ public:
       throw std::invalid_argument("argument '" + name + "' already exists.");
     }
 
-    m_pos_args.push_back(ArgumentDef(name, "", "", help, ArgType_Positional,
+    std::vector<std::string> empty_aliases;
+    m_pos_args.push_back(ArgumentDef(name, empty_aliases, help, ArgType_Positional,
                                      required, default_value));
     m_pos_args.back().type = type;
     return *this;
@@ -890,7 +916,7 @@ public:
       // check for subcommand
       if (kind == lexer::TokId) {
         std::string potential_subcommand_or_alias = token.get_id_value();
-        command_ptr matched_subcommand = nullptr;
+        command_ptr matched_subcommand;
 
         // first, check if it's a direct name match
         auto sub_it = m_commands.find(potential_subcommand_or_alias);
@@ -1248,19 +1274,21 @@ private:
     for (std::vector<ArgumentDef>::const_iterator it = m_kw_args.begin();
          it != m_kw_args.end(); ++it) {
       const ArgumentDef &arg = *it;
-      if (is_short_flag_kind) {
-        // compare flag_name_value against the name part of short_name (e.g.,
-        // compare "f" with "-f")
-        if (!arg.short_name.empty() && arg.short_name.length() > 1 &&
-            arg.short_name.substr(1) == flag_name_value) {
-          return &arg; // return pointer to the element
-        }
-      } else {
-        // compare flag_name_value against the name part of long_name (e.g.,
-        // compare "force" with "--force")
-        if (!arg.long_name.empty() && arg.long_name.length() > 2 &&
-            arg.long_name.substr(2) == flag_name_value) {
-          return &arg;
+      if (arg.name == flag_name_value) {
+        return &arg;
+      }
+      for (size_t i = 0; i < arg.aliases.size(); ++i) {
+        const std::string &alias = arg.aliases[i];
+        if (is_short_flag_kind) {
+          // match "-f" for short flag "f"
+          if (alias.length() == 2 && alias[0] == '-' && alias.substr(1) == flag_name_value) {
+            return &arg;
+          }
+        } else {
+          // match "--force" for long flag "force"
+          if (alias.length() > 2 && alias.substr(0, 2) == "--" && alias.substr(2) == flag_name_value) {
+            return &arg;
+          }
         }
       }
     }
@@ -1333,8 +1361,11 @@ private:
       }
     }
     if (!help_exists) {
+      std::vector<std::string> help_aliases;
+      help_aliases.push_back("-h");
+      help_aliases.push_back("--help");
       m_kw_args.push_back(
-          ArgumentDef("help", "-h", "--help", "show this help message and exit",
+          ArgumentDef("help", help_aliases, "show this help message and exit",
                       ArgType_Flag, false, ArgValue(false), true));
     }
   }
