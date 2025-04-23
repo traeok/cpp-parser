@@ -645,9 +645,10 @@ public:
       }
     }
     // also check the new subcommand's aliases against its own name
-    for (const auto &alias : sub->get_aliases()) {
-      if (alias == sub_name) {
-        throw std::invalid_argument("subcommand alias '" + alias +
+    auto &aliases = sub->get_aliases();
+    for (auto alias = aliases.begin(); alias != aliases.end(); alias++) {
+      if (*alias == sub_name) {
+        throw std::invalid_argument("subcommand alias '" + *alias +
                                     "' cannot be the same as its name '" +
                                     sub_name + "'.");
       }
@@ -1051,6 +1052,14 @@ public:
     // over.
     if (m_handler && result.status == ParseResult::ParserStatus_Success) {
       result.exit_code = m_handler(result);
+    }
+
+    // If this command is a group (has subcommands), has no handler, and parsing succeeded,
+    // print help and set status to HelpRequested.
+    if (!m_handler && !m_commands.empty() && result.status == ParseResult::ParserStatus_Success) {
+      generate_help(std::cout, command_path_prefix);
+      result.status = ParseResult::ParserStatus_HelpRequested;
+      result.exit_code = 0;
     }
 
     return result;
