@@ -1,138 +1,47 @@
 #include <cassert>
 #include <iostream>
 #include <sstream>
-#include "lexer/lexer.h"
-#include "parser/cli_parser.h"
-#include "lexer/source.h"
+#include "../include/lexer.hpp"
+#include "../include/pparser.hpp"
 
-// Helper function to tokenize a string
-std::vector<lexer::Token> tokenize(const std::string &input)
+// Helper function to parse a command line using pparser
+pparser::ParseResult parse_command_line(const std::string &input, pparser::ArgumentParser &parser)
 {
-    lexer::Source source = lexer::Source::fromString(input, "<stdin>");
-    return lexer::Lexer::tokenize(source);
-}
-
-// Helper function to print a command structure
-void printCommand(const parser::CLICommand &cmd, int indent = 0)
-{
-    std::string spaces(indent * 2, ' ');
-
-    std::cout << spaces << "Command: " << cmd.name << "\n";
-
-    if (!cmd.flags.empty())
-    {
-        std::cout << spaces << "Flags:\n";
-        for (const auto &flag : cmd.flags)
-        {
-            std::cout << spaces << "  " << (flag->isLong ? "--" : "-") << flag->name;
-            if (!flag->value.empty())
-            {
-                std::cout << "=" << flag->value;
-            }
-            std::cout << "\n";
-        }
-    }
-
-    if (!cmd.args.empty())
-    {
-        std::cout << spaces << "Arguments:\n";
-        for (const auto &arg : cmd.args)
-        {
-            std::cout << spaces << "  " << arg->value << "\n";
-        }
-    }
-
-    if (!cmd.subcommands.empty())
-    {
-        std::cout << spaces << "Subcommands:\n";
-        for (const auto &subcmd : cmd.subcommands)
-        {
-            printCommand(*subcmd, indent + 1);
-        }
-    }
+    return parser.parse(input);
 }
 
 // Test cases
-void testSimpleCommand()
+void testQuotedParenthesesArgument()
 {
-    std::cout << "\nTesting simple command...\n";
-    auto tokens = tokenize("git status");
-    auto cmd = parser::CLIParser::parse(tokens);
-    assert(cmd->name == "git");
-    assert(cmd->args.size() == 1);
-    assert(cmd->args[0]->value == "status");
-    printCommand(*cmd);
-}
+    std::cout << "\nTesting quoted argument with parentheses...\n";
+    pparser::ArgumentParser parser("ds", "Test CLI parser");
 
-void testCommandWithFlags()
-{
-    std::cout << "\nTesting command with flags...\n";
-    auto tokens = tokenize("git commit -m \"Initial commit\" --verbose");
-    auto cmd = parser::CLIParser::parse(tokens);
-    assert(cmd->name == "git");
-    assert(cmd->flags.size() == 2);
-    assert(cmd->flags[0]->isLong == false);
-    assert(cmd->flags[0]->name == "m");
-    assert(cmd->flags[0]->value == "Initial commit");
-    assert(cmd->flags[1]->isLong == true);
-    assert(cmd->flags[1]->name == "verbose");
-    printCommand(*cmd);
-}
+    // root command: ds
+    pparser::Command &root = parser.get_root_command();
+    // add positional argument: view
+    root.add_positional_arg("cmd", "subcommand", pparser::ArgType_Single, true);
+    // add positional argument: data
+    root.add_positional_arg("data", "data argument", pparser::ArgType_Single, true);
 
-void testCommandWithEqualsFlags()
-{
-    std::cout << "\nTesting command with equals in flags...\n";
-    auto tokens = tokenize("program --config=\"config.json\" --count=5");
-    auto cmd = parser::CLIParser::parse(tokens);
-    assert(cmd->name == "program");
-    assert(cmd->flags.size() == 2);
-    assert(cmd->flags[0]->name == "config");
-    assert(cmd->flags[0]->value == "config.json");
-    assert(cmd->flags[1]->name == "count");
-    assert(cmd->flags[1]->value == "5");
-    printCommand(*cmd);
-}
-
-void testComplexCommand()
-{
-    std::cout << "\nTesting complex command...\n";
-    auto tokens = tokenize("docker run -p 8080:80 --name web-server --env-file .env ubuntu bash");
-    auto cmd = parser::CLIParser::parse(tokens);
-    assert(cmd->name == "docker");
-    assert(cmd->args.size() == 2);
-    assert(cmd->args[0]->value == "ubuntu");
-    assert(cmd->args[1]->value == "bash");
-    assert(cmd->flags.size() == 3);
-    printCommand(*cmd);
-}
-
-void testErrorCases()
-{
-    std::cout << "\nTesting error cases...\n";
-
-    // Test missing command name
-    try
-    {
-        auto tokens = tokenize("--flag");
-        auto cmd = parser::CLIParser::parse(tokens);
-        assert(false && "Should have thrown an exception");
+    // Print tokens for debugging
+    std::string input = "view \"MY.DATA(MEMBER)\"";
+    lexer::Src src = lexer::Src::from_string(input, "<test>");
+    std::vector<lexer::Token> tokens = lexer::Lexer::tokenize(src);
+    std::cout << "Tokens:\n";
+    for (size_t i = 0; i < tokens.size(); ++i) {
+        std::cout << "  [" << i << "] ";
+        tokens[i].print(std::cout);
+        std::cout << "\n";
     }
-    catch (const std::runtime_error &e)
-    {
-        std::cout << "Caught expected error: " << e.what() << "\n";
-    }
+    std::cout << std::flush;
 
-    // Test invalid flag format
-    try
-    {
-        auto tokens = tokenize("cmd --");
-        auto cmd = parser::CLIParser::parse(tokens);
-        assert(false && "Should have thrown an exception");
-    }
-    catch (const std::runtime_error &e)
-    {
-        std::cout << "Caught expected error: " << e.what() << "\n";
-    }
+    pparser::ParseResult result = parse_command_line(input, parser);
+
+    assert(result.status == pparser::ParseResult::ParserStatus_Success);
+    assert(result.find_pos_arg_string("cmd") == "view");
+    assert(result.find_pos_arg_string("data") == "MY.DATA(MEMBER)");
+    std::cout << "cmd: " << result.find_pos_arg_string("cmd") << "\n";
+    std::cout << "data: " << result.find_pos_arg_string("data") << "\n";
 }
 
 int main()
@@ -140,13 +49,7 @@ int main()
     try
     {
         std::cout << "Running CLI parser tests...\n";
-
-        testSimpleCommand();
-        testCommandWithFlags();
-        testCommandWithEqualsFlags();
-        testComplexCommand();
-        testErrorCases();
-
+        testQuotedParenthesesArgument();
         std::cout << "\nAll tests passed!\n";
         return 0;
     }

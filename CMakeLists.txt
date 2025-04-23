@@ -22,4 +22,7 @@ if(MSVC)
 else()
     # GCC/Clang flags
     set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wall -Wextra -pedantic")
-endif() 
+endif()
+
+enable_testing()
+add_subdirectory(tests)

@@ -16,4 +16,6 @@ target_link_libraries(cli_parser_test
 target_include_directories(cli_parser_test
     PRIVATE
     ${CMAKE_SOURCE_DIR}/include
-) 
+)
+
+add_test(NAME cli_parser_test COMMAND ${CMAKE_CURRENT_BINARY_DIR}/Debug/cli_parser_test.exe)
