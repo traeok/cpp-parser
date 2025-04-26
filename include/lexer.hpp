@@ -1,3 +1,27 @@
+/**
+MIT License
+
+Copyright (c) 2025 Trae Yelovich <trae@trae.is>
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all
+copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+SOFTWARE.
+*/
+
 #ifndef LEXER_HPP
 #define LEXER_HPP
 
@@ -706,7 +730,7 @@ public:
               os << '\\'; // dangling backslash at end of content
             }
           } else if (c == '"') { // should not happen in raw content, but escape
-                                 // if found
+            // if found
             os << "\\\"";
           } else if (c == '\n') { // represent newline visually
             os << "\\n";
@@ -853,10 +877,11 @@ private:
   // guaranteed/required.
   static bool is_ident_start(char c) {
     return std::isalpha(static_cast<unsigned char>(c)) || c == '$' ||
-           c == '_' || c == '/';
+           c == '_' || c == '/' || c == '*';
   }
   static bool is_ident_cont(char c) {
-    return is_ident_start(c) || is_ascii_dec_digit(c) || c == '.' || c == '/' || c == '*' || c == '-' || c == '(' || c == ')';
+    return is_ident_start(c) || is_ascii_dec_digit(c) || c == '.' || c == '/' ||
+           c == '*' || c == '-' || c == '(' || c == ')';
   }
 
   // combined digit check for lex_number
@@ -1011,7 +1036,7 @@ private:
       // comments are handled by eat_whitespace_and_comments
       // check if it starts a path-like identifier
       if (is_ident_cont(peek())) { // if '/' is followed by another identifier
-                                   // character...
+        // character...
         return lex_identifier_or_keyword(
             start_pos); // ...treat it as the start of an identifier
       } else {
