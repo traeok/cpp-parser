@@ -807,6 +807,10 @@ private:
       if (expect_string)
         return ArgValue(token.get_id_value());
       break;
+    case lexer::TokTimes:
+      if (expect_string)
+        return ArgValue("*");
+      break;
     default:
       break;
     }
