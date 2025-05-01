@@ -61,6 +61,33 @@ SOFTWARE.
 
 namespace pparser {
 
+// Levenshtein distance for suggestions
+// Measures the similarity between strings a and b 
+inline size_t levenshtein_distance(const std::string &a, const std::string &b) {
+  const size_t len_a = a.size();
+  const size_t len_b = b.size();
+  std::vector<size_t> prev(len_b + 1, 0);
+  std::vector<size_t> curr(len_b + 1, 0);
+
+  for (size_t j = 0; j <= len_b; ++j)
+    prev[j] = j;
+
+  for (size_t i = 1; i <= len_a; ++i) {
+    curr[0] = i;
+    for (size_t j = 1; j <= len_b; ++j) {
+      size_t cost = (a[i - 1] == b[j - 1]) ? 0 : 1;
+      size_t del = prev[j] + 1;
+      size_t ins = curr[j - 1] + 1;
+      size_t sub = prev[j - 1] + cost;
+      size_t min_val = del < ins ? del : ins;
+      min_val = min_val < sub ? min_val : sub;
+      curr[j] = min_val;
+    }
+    prev = curr;
+  }
+  return prev[len_b];
+}
+
 // Helper for environments without initializer_list support
 inline std::vector<std::string> make_aliases(const char *a1 = 0,
                                              const char *a2 = 0,
@@ -1227,7 +1254,39 @@ Command::parse(const std::vector<lexer::Token> &tokens,
         result.error_message = "unknown option: ";
         result.error_message += (is_short_flag_kind ? "-" : "--");
         result.error_message += flag_name_str;
-        std::cerr << "error: " << result.error_message << "\n\n";
+
+        // Suggest similar option
+        size_t best_dist = (size_t)-1;
+        std::string best_match;
+        for (size_t i = 0; i < m_kw_args.size(); ++i) {
+          const ArgumentDef &arg = m_kw_args[i];
+          // Check canonical name
+          size_t dist = pparser::levenshtein_distance(flag_name_str, arg.name);
+          if (dist < best_dist) {
+            best_dist = dist;
+            best_match = "--" + arg.name;
+          }
+          // Check aliases
+          for (size_t j = 0; j < arg.aliases.size(); ++j) {
+            std::string alias = arg.aliases[j];
+            // Remove leading dashes for comparison
+            std::string alias_cmp = alias;
+            while (!alias_cmp.empty() && alias_cmp[0] == '-') alias_cmp = alias_cmp.substr(1);
+            dist = pparser::levenshtein_distance(flag_name_str, alias_cmp);
+            if (dist < best_dist) {
+              best_dist = dist;
+              best_match = alias;
+            }
+          }
+        }
+        std::cerr << "Error: " << result.error_message << "\n";
+        
+        if (best_dist != (size_t)-1 && best_dist <= 2) {
+          std::cerr << "Did you mean '" << best_match << "'?\n\n";
+        } else {
+          std::cerr << "\n";
+        }
+
         generate_help(std::cerr, command_path_prefix);
         result.exit_code = 1;
         return result;
@@ -1383,6 +1442,40 @@ Command::parse(const std::vector<lexer::Token> &tokens,
         // propagate the result (success, error, or help request) from the
         // subcommand.
         return sub_result;
+      } else if (!m_commands.empty()) {
+        // Suggest similar subcommand/group
+        size_t best_dist = (size_t)-1;
+        std::string best_match;
+        for (std::map<std::string, command_ptr>::const_iterator it2 = m_commands.begin();
+             it2 != m_commands.end(); ++it2) {
+          // Check subcommand name
+          size_t dist = pparser::levenshtein_distance(potential_subcommand_or_alias, it2->first);
+          if (dist < best_dist) {
+            best_dist = dist;
+            best_match = it2->first;
+          }
+          // Check aliases
+          const std::vector<std::string> &aliases = it2->second->get_aliases();
+          for (size_t j = 0; j < aliases.size(); ++j) {
+            dist = pparser::levenshtein_distance(potential_subcommand_or_alias, aliases[j]);
+            if (dist < best_dist) {
+              best_dist = dist;
+              best_match = aliases[j];
+            }
+          }
+        }
+        result.status = ParseResult::ParserStatus_ParseError;
+        result.error_message = "unknown command or group: " + potential_subcommand_or_alias;
+        std::cerr << "Error: " << result.error_message << "\n";
+        
+        if (best_dist != (size_t)-1 && best_dist <= 2) {
+          std::cerr << "Did you mean '" << best_match << "'?\n\n";
+        } else {
+          std::cerr << "\n";
+        }
+        generate_help(std::cerr, command_path_prefix);
+        result.exit_code = 1;
+        return result;
       }
     }
 
