@@ -1782,6 +1782,90 @@ private:
   command_ptr m_root_cmd;
 }; // class ArgumentParser
 
+/**
+ * Generate a bash completion script for the given CLI parser.
+ * @param os Output stream to write the script to.
+ * @param prog_name The name of the executable (as invoked).
+ * @param root_cmd The root Command object.
+ */
+inline void generate_bash_completion(std::ostream &os, const std::string &prog_name, const Command &root_cmd) {
+  // Helper to recursively emit command tree as bash arrays
+  struct BashEmit {
+    static void emit_command_tree(const Command &cmd, const std::string &prefix, std::ostream &os) {
+      std::string arr_name = "_pparser_cmds";
+      if (!prefix.empty()) arr_name += "_" + prefix;
+      os << arr_name << "=( ";
+      // Subcommands
+      const std::map<std::string, command_ptr> &subs = cmd.get_commands();
+      for (std::map<std::string, command_ptr>::const_iterator it = subs.begin(); it != subs.end(); ++it) {
+        os << "'" << it->first << "' ";
+        // Aliases
+        const std::vector<std::string> &aliases = it->second->get_aliases();
+        for (size_t j = 0; j < aliases.size(); ++j) {
+          os << "'" << aliases[j] << "' ";
+        }
+      }
+      os << ")\n";
+      // Options
+      std::string opt_arr = "_pparser_opts";
+      if (!prefix.empty()) opt_arr += "_" + prefix;
+      os << opt_arr << "=( ";
+      const std::vector<ArgumentDef> &kw = cmd.get_keyword_args();
+      for (size_t i = 0; i < kw.size(); ++i) {
+        for (size_t j = 0; j < kw[i].aliases.size(); ++j) {
+          os << "'" << kw[i].aliases[j] << "' ";
+        }
+        // Also add --<name> if not already present
+        if (!kw[i].name.empty() && kw[i].type != ArgType_Positional) {
+          std::string long_flag = "--" + kw[i].name;
+          bool found = false;
+          for (size_t j = 0; j < kw[i].aliases.size(); ++j) {
+            if (kw[i].aliases[j] == long_flag) { found = true; break; }
+          }
+          if (!found) os << "'" << long_flag << "' ";
+        }
+      }
+      os << ")\n";
+      // Recurse for subcommands
+      for (std::map<std::string, command_ptr>::const_iterator it = subs.begin(); it != subs.end(); ++it) {
+        std::string sub_prefix = prefix.empty() ? it->first : (prefix + "_" + it->first);
+        emit_command_tree(*it->second, sub_prefix, os);
+      }
+    }
+  };
+
+  // Emit arrays for all commands/subcommands
+  BashEmit::emit_command_tree(root_cmd, "", os);
+
+  // Emit the completion function
+  os << "_pparser_complete_" << prog_name << "() {\n";
+  os << "  local cur prev words cword\n";
+  os << "  _get_comp_words_by_ref -n : cur prev words cword\n";
+  os << "  local i cmd_path=\"\" arr_name=\"_pparser_cmds\" opt_arr=\"_pparser_opts\"\n";
+  os << "  local level=0\n";
+  os << "  for ((i=1; i < ${#words[@]}; ++i)); do\n";
+  os << "    w=${words[i]}\n";
+  os << "    eval arr=\"\\${!arr_name}\"\n";
+  os << "    found=0\n";
+  os << "    for entry in \"${arr[@]}\"; do\n";
+  os << "      if [[ \"$w\" == \"$entry\" ]]; then\n";
+  os << "        cmd_path+=\"_\"$w\n";
+  os << "        arr_name=\"_pparser_cmds$cmd_path\"\n";
+  os << "        opt_arr=\"_pparser_opts$cmd_path\"\n";
+  os << "        found=1\n";
+  os << "        break\n";
+  os << "      fi\n";
+  os << "    done\n";
+  os << "    if [[ $found -eq 0 ]]; then break; fi\n";
+  os << "  done\n";
+  os << "  eval opts=\"\\${!opt_arr}\"\n";
+  os << "  eval cmds=\"\\${!arr_name}\"\n";
+  os << "  COMPREPLY=( $(compgen -W \"${opts[*]} ${cmds[*]}\" -- \"$cur\") )\n";
+  os << "  return 0\n";
+  os << "}\n";
+  os << "complete -F _pparser_complete_" << prog_name << " " << prog_name << "\n";
+}
+
 } // namespace pparser
 
 #endif // PPARSER_HPP
