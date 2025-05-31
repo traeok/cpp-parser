@@ -76,7 +76,3 @@ The parser demo is a git-like CLI with support for a couple subcommands and flag
 ```
 
 The parser parses the input and invokes the command handler for the recognized command. The handlers simply print the provided arguments and inputs to show how the parsed data can be used.
-
-## License
-
-This project is open source and available under the MIT License. 
