@@ -1,6 +1,6 @@
-# pparser
+# cpp-parser
 
-A lexical analyzer (lexer) and CLI parser facility implemented in C++. This project started as a port of a Rust lexer to C++, following pre-C++11 standards with limited use of C++11 features (only vector, unordered_map, and map) to enable compatibility with older compilers.
+A lexical analyzer (lexer) and CLI parser facility implemented in C++. This project adheres to C++03 standards with limited use of C++ Technical Report 1 features to enable compatibility with older compilers.
 
 ## Lexer Features
 
@@ -33,7 +33,8 @@ A lexical analyzer (lexer) and CLI parser facility implemented in C++. This proj
 ### Prerequisites
 
 - CMake (version 2.8 or higher)
-- C++ compiler with C++03 support
+- C++ compiler with C++11 support (recommended)
+  - **Required:** C++03 compiler with support for `nullptr`, `auto`, `long long`, `unordered_map`
 
 ### Build steps
 
@@ -48,7 +49,7 @@ cmake --build .
 ./Debug/lexer_demo
 
 # Run the parser demo
-./Debug/pparser_demo
+./Debug/parser_demo
 ```
 
 ## Usage
