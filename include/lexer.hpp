@@ -997,38 +997,23 @@ private:
     case ',':
       next();
       return Token(TokComma, Span(start_pos, m_iter.position()));
+    case '.':
+      next();
+      return Token(TokDot, Span(start_pos, m_iter.position()));
 
     // potentially multi-character tokens
     case '-':
-      next();               // consume '-'
-      if (current() == '-') // check for second '-'
-      {
+      next(); // consume '-'
+      if (current() == '-') {
         next(); // consume second '-'
-                // check if it's followed by identifier start (long flag)
         if (is_ident_start(current())) {
-          // current position is *after* '--'. start pos was before first '-'.
-          return lex_long_flag(start_pos); // pass original start pos
-        }
-        // check if just '--' (often end of options)
-        else if (!is_ident_cont(current()) && !is_ascii_dec_digit(current())) {
-          return Token(TokDoubleMinus, Span(start_pos, m_iter.position()));
+          return lex_long_flag(start_pos);
         } else {
-          // case like "--1" or "--_" ? treat as error? or allow as part of long
-          // flag? current lex_long_flag expects ident start. let's treat as
-          // error here.
-          throw LexError::invalid_char(
-              Location(start_loc.m_filename, start_loc.m_line,
-                       start_loc.m_col + 2)); // error after '--'
+          return Token(TokDoubleMinus, Span(start_pos, m_iter.position()));
         }
-      }
-      // check if it's followed by identifier or digit (short flag)
-      else if (is_ident_start(current()) || is_ascii_dec_digit(current())) {
-        // current position is after '-'. start pos was before '-'.
-        return lex_short_flag(start_pos); // pass original start pos
-      }
-      // check for negative numbers (handled by lex_number starting with digit)
-      // or just the minus operator
-      else {
+      } else if (is_ident_start(current()) || is_ascii_dec_digit(current())) {
+        return lex_short_flag(start_pos);
+      } else {
         return Token(TokMinus, Span(start_pos, m_iter.position()));
       }
 
@@ -1224,71 +1209,49 @@ private:
 
   // lexes a number (integer or float)
   Token lex_number(size_t start_pos) {
-    // start_pos is position of first digit
-    Location start_loc = m_iter.get_location(); // location of first digit
+    Location start_loc = m_iter.get_location();
     Radix base = Dec;
     bool is_float = false;
     bool has_exponent = false;
 
-    // use a temporary buffer for digits to pass to strtoll/strtod
-    // avoids std::string allocation overhead in the common case.
-    // max length: 64-bit int ~20 digits, double ~30 chars? add
-    // prefixes/signs/etc.
-    char num_buffer[64]; // should be sufficient for valid numbers
+    char num_buffer[64];
     int buffer_idx = 0;
-    const int buffer_max_idx =
-        sizeof(num_buffer) - 1; // leave space for null terminator
+    const int buffer_max_idx = sizeof(num_buffer) - 1;
 
-    // check for base prefixes (0x, 0b)
+    // Check for base prefixes (0x, 0b)
     if (current() == '0') {
       if (buffer_idx < buffer_max_idx) {
         num_buffer[buffer_idx++] = '0';
       }
-      next();             // consume '0'
-      char p = current(); // use current() after consuming '0'
-      if (p == 'x' || p == 'x') {
+      next();
+      char p = current();
+      if (p == 'x' || p == 'X') {
         base = Hex;
         if (buffer_idx < buffer_max_idx) {
           num_buffer[buffer_idx++] = p;
         }
-        next();                               // consume x/x
-        if (!is_ascii_hex_digit(current())) { // check must follow prefix
+        next();
+        if (!is_ascii_hex_digit(current())) {
           throw LexError::incomplete_int(m_iter.get_location());
         }
-      } else if (p == 'b' || p == 'b') {
+      } else if (p == 'b' || p == 'B') {
         base = Bin;
         if (buffer_idx < buffer_max_idx) {
           num_buffer[buffer_idx++] = p;
         }
-        next();                               // consume b/b
-        if (!is_ascii_bin_digit(current())) { // check must follow prefix
+        next();
+        if (!is_ascii_bin_digit(current())) {
           throw LexError::incomplete_int(m_iter.get_location());
         }
-      }
-      // if just '0' followed by non-prefix, non-digit/non-dot/non-exp -> treat
-      // as single 0
-      else if (!is_ascii_dec_digit(p) && p != '.' && p != 'e' && p != 'e') {
-        num_buffer[buffer_idx] = '\0'; // null-terminate
+      } else if (!is_ascii_dec_digit(p) && p != '.' && p != 'e' && p != 'E') {
+        // Just '0' followed by non-numeric/non-float chars
+        num_buffer[buffer_idx] = '\0';
         return Token::make_int_lit(0, Dec, Span(start_pos, m_iter.position()));
       }
-      // allow '0' followed by octal digits if octal is supported (not
-      // currently) else if (p >= '0' && p <= '7') { /* handle octal */ }
-
-      // otherwise, continue parsing (might be 0.1, 0e1, or just 0123 in dec)
     }
 
-    // parse the main part of the number (integer part for floats)
-    // handles first digit if not '0' prefix case
+    // Parse main digits
     while (is_digit_or_underscore(current(), base)) {
-      // need to add the first digit if it wasn't '0'
-      if (buffer_idx == 0 &&
-          start_pos ==
-              m_iter.position() - 1) { // add first digit if not already added
-        if (buffer_idx < buffer_max_idx) {
-          num_buffer[buffer_idx++] = m_input_ptr[start_pos];
-        }
-      }
-
       if (current() != '_') {
         if (buffer_idx < buffer_max_idx) {
           num_buffer[buffer_idx++] = current();
@@ -1296,28 +1259,16 @@ private:
       }
       next();
     }
-    // ensure first digit was added if loop didn't run (e.g., single digit
-    // number)
-    if (buffer_idx == 0 && start_pos == m_iter.position() - 1) {
-      if (buffer_idx < buffer_max_idx) {
-        num_buffer[buffer_idx++] = m_input_ptr[start_pos];
-      }
-    }
 
-    // check for float components (only if base is dec)
+    // Check for float components (only if base is decimal)
     if (base == Dec) {
-      // check for decimal point '.' followed by a digit
-      Location dot_loc = m_iter.get_location();
-      if (current() == '.' &&
-          is_ascii_dec_digit(peek())) // must have digit after '.'
-      {
+      // Decimal point
+      if (current() == '.' && is_ascii_dec_digit(peek())) {
         is_float = true;
         if (buffer_idx < buffer_max_idx) {
           num_buffer[buffer_idx++] = '.';
-        } // add the decimal point
-        next(); // consume .
-
-        // parse fractional part
+        }
+        next();
         while (is_digit_or_underscore(current(), Dec)) {
           if (current() != '_') {
             if (buffer_idx < buffer_max_idx) {
@@ -1327,39 +1278,28 @@ private:
           next();
         }
       }
-      // if only ".", treat number as integer and '.' as separate token (handled
-      // by next_token)
-      else if (current() == '.') {
-        // stop number parsing here. let '.' be handled by next_token.
-      }
 
-      // check for exponent e/e
-      Location exp_loc = m_iter.get_location();
-      if (current() == 'e' || current() == 'e') {
+      // Exponent
+      if (current() == 'e' || current() == 'E') {
         char exp_peek = peek();
-        char exp_peek2 = peek2(); // need peek2 from iterator
-
-        // valid exponent part requires digit, or sign followed by digit
+        char exp_peek2 = peek2();
+        
         if (is_ascii_dec_digit(exp_peek) ||
-            ((exp_peek == '+' || exp_peek == '-') &&
-             is_ascii_dec_digit(exp_peek2))) {
-          is_float = true; // a number with exponent is always float
+            ((exp_peek == '+' || exp_peek == '-') && is_ascii_dec_digit(exp_peek2))) {
+          is_float = true;
           has_exponent = true;
           if (buffer_idx < buffer_max_idx) {
             num_buffer[buffer_idx++] = current();
-          } // add 'e' or 'e'
-          next(); // consume e/e
-
-          // add exponent sign if present
+          }
+          next();
+          
           if (current() == '+' || current() == '-') {
             if (buffer_idx < buffer_max_idx) {
               num_buffer[buffer_idx++] = current();
             }
             next();
           }
-
-          // must have at least one digit in exponent (already checked by outer
-          // condition) parse exponent digits
+          
           while (is_digit_or_underscore(current(), Dec)) {
             if (current() != '_') {
               if (buffer_idx < buffer_max_idx) {
@@ -1369,85 +1309,54 @@ private:
             next();
           }
         }
-        // else: 'e'/'e' not followed by valid exponent chars, stop number
-        // parsing here. let 'e' be handled as part of an identifier later if
-        // applicable.
       }
-    }
-    // cannot have float parts ('.', 'e', 'e') for hex/bin
-    else if (current() == '.' || current() == 'e' || current() == 'e') {
-      throw LexError::invalid_char(
-          m_iter.get_location()); // e.g., 0x_ff.0 is invalid
+    } else if (current() == '.' || current() == 'e' || current() == 'E') {
+      throw LexError::invalid_char(m_iter.get_location());
     }
 
-    // null-terminate the buffer
     num_buffer[buffer_idx] = '\0';
 
-    // handle cases where only prefix was consumed (e.g., "0x" then eof)
-    // need to check if any digits were actually added after prefix
+    // Validate we have actual digits after prefix
     const char *digits_start = num_buffer;
-    if (base == Hex && buffer_idx <= 2) { // only "0x"
-      throw LexError::incomplete_int(m_iter.get_location());
-    }
-    if (base == Bin && buffer_idx <= 2) { // only "0b"
-      throw LexError::incomplete_int(m_iter.get_location());
-    }
-    // point digits_start after prefix for conversion functions
     if (base == Hex || base == Bin) {
-      digits_start += 2; // skip "0x" or "0b"
+      if (buffer_idx <= 2) {
+        throw LexError::incomplete_int(m_iter.get_location());
+      }
+      digits_start += 2; // Skip prefix
     }
 
-    // convert the accumulated digits string
+    if (*digits_start == '\0') {
+      throw LexError::incomplete_int(start_loc);
+    }
+
     size_t end_pos = m_iter.position();
     Span number_span(start_pos, end_pos);
-    Location end_loc =
-        m_iter.get_location(); // use location at end for range errors
 
     if (is_float) {
       errno = 0;
       char *endptr;
-      // use the full buffer content for strtod
       double value = strtod(num_buffer, &endptr);
 
       if (errno == ERANGE) {
-        throw LexError::float_out_of_range(end_loc);
+        throw LexError::float_out_of_range(m_iter.get_location());
       }
-      // check if conversion consumed the part we expected
       if (endptr != num_buffer + buffer_idx) {
-        // this might happen if invalid chars snuck in or buffer overflowed.
-        // or if strtod stopped early unexpectedly.
-        throw LexError::invalid_float(
-            start_loc); // error likely relates to start/format
+        throw LexError::invalid_float(start_loc);
       }
 
       return Token::make_float_lit(value, has_exponent, number_span);
-    } else // it's an integer
-    {
+    } else {
       errno = 0;
       char *endptr;
       int strtoll_base = (base == Hex) ? 16 : (base == Bin) ? 2 : 10;
-
-      // handle empty digits_start case (e.g. "0x" where check above failed
-      // somehow)
-      if (*digits_start == '\0') {
-        throw LexError::incomplete_int(start_loc);
-      }
-
-      // use digits_start (skips 0x/0b if present)
       long long value = strtoll(digits_start, &endptr, strtoll_base);
 
       if (errno == ERANGE) {
-        throw LexError::int_out_of_range(end_loc);
+        throw LexError::int_out_of_range(m_iter.get_location());
       }
 
-      // check if conversion consumed the entire digits part we expected
-      // calculate expected end pointer within the original buffer
-      const char *expected_end_in_buffer = num_buffer + buffer_idx;
-      if (endptr != expected_end_in_buffer) {
-        // incomplete conversion likely means invalid chars (e.g., "0x_fg")
-        // or buffer overflow truncated valid digits?
-        // use location where parsing stopped if possible, else start_loc.
-        // finding exact failure point post-strtoll is hard. use start_loc.
+      const char *expected_end = num_buffer + buffer_idx;
+      if (endptr != expected_end) {
         throw LexError::incomplete_int(start_loc);
       }
 
@@ -1457,70 +1366,34 @@ private:
 
   // lexes a short flag (e.g., -v, -f)
   // assumes called when current() is the char *after* '-'
-  Token lex_short_flag(size_t start_pos) // start_pos is the position of '-'
-  {
-    Location flag_char_loc = m_iter.get_location(); // loc of char after '-'
-    size_t content_start_pos = m_iter.position(); // position of char after '-'
+  Token lex_short_flag(size_t start_pos) {
+    size_t content_start_pos = m_iter.position();
 
-    // read the flag content (alphanumeric sequence)
-    // short flags are typically single char, but allow sequence for flexibility
-    // adjust is_ident_cont / is_ascii_dec_digit if flags have different rules
     while (is_ident_cont(current()) || is_ascii_dec_digit(current())) {
       next();
     }
+    
     size_t end_pos = m_iter.position();
     size_t length = end_pos - content_start_pos;
-
-    if (length == 0) {
-      // this means '-' was followed by whitespace or eof or symbol
-      // treat as just TokMinus, need to backtrack or handle in next_token
-      // revisit next_token logic: it should return TokMinus if '-' not followed
-      // by flag char for now, assume if we reach here, length > 0. if this
-      // error occurs, the logic in next_token needs adjustment.
-      throw std::runtime_error(
-          "internal lexer error: lex_short_flag called incorrectly"); // should
-                                                                      // not
-                                                                      // happen
-    }
-
     const char *flag_start_ptr = m_input_ptr + content_start_pos;
-    // use make_flag (which currently creates TokId)
-    // the span should include the leading '-'
-    return Token::make_short_flag(flag_start_ptr, length,
-                                  Span(start_pos, end_pos));
+    
+    return Token::make_short_flag(flag_start_ptr, length, Span(start_pos, end_pos));
   }
 
   // lexes a long flag (e.g., --version, --file)
   // assumes called when current() is the char *after* '--'
-  Token
-  lex_long_flag(size_t start_pos) // start_pos is the position of first '-'
-  {
-    Location name_start_loc = m_iter.get_location(); // loc of char after '--'
-    size_t name_start_pos = m_iter.position(); // position of char after '--'
+  Token lex_long_flag(size_t start_pos) {
+    size_t name_start_pos = m_iter.position();
 
-    // read the identifier part of the flag name
-    // allow '-' within long flag names? e.g. --my-flag
     while (is_ident_cont(current()) || current() == '-') {
       next();
     }
+    
     size_t name_end_pos = m_iter.position();
     size_t name_length = name_end_pos - name_start_pos;
-
-    if (name_length == 0) {
-      // should not happen if called correctly from next_token (checked for
-      // is_ident_start)
-      throw LexError::invalid_char(name_start_loc); // error started after '--'
-    }
-
     const char *name_start_ptr = m_input_ptr + name_start_pos;
 
-    // check for =value attached?
-    // current design: lexer returns only the flag name token.
-    // parser handles the '=' and subsequent value token if present.
-    // so, just return the flag token based on the name.
-    // the span should include the leading '--'
-    return Token::make_long_flag(name_start_ptr, name_length,
-                                 Span(start_pos, name_end_pos));
+    return Token::make_long_flag(name_start_ptr, name_length, Span(start_pos, name_end_pos));
   }
 
   // character navigation helpers (inline wrappers around iterator)
