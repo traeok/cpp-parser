@@ -414,9 +414,9 @@ public:
     }
     // ensure aliases are unique across all args (including potential
     // auto-generated ones)
-    for (std::vector<ArgumentDef>::const_iterator it = m_kw_args.begin();
-         it != m_kw_args.end(); ++it) {
-      const ArgumentDef &existing_arg = *it;
+    for (std::vector<ArgumentDef>::const_iterator kwarg = m_kw_args.begin();
+         kwarg != m_kw_args.end(); ++kwarg) {
+      const ArgumentDef &existing_arg = *kwarg;
       for (size_t i = 0; i < aliases.size(); ++i) {
         for (size_t j = 0; j < existing_arg.aliases.size(); ++j) {
           if (!aliases[i].empty() && aliases[i] == existing_arg.aliases[j]) {
