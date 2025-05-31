@@ -1,10 +1,10 @@
-#include "pparser.hpp"
+#include "parser.hpp"
 #include <iostream>
 #include <string>
 #include <vector>
 
 // handler for the 'add' subcommand
-int handle_add_command(const pparser::ParseResult &result) {
+int handle_add_command(const parser::ParseResult &result) {
   std::cout << "executing command: " << result.command_path << std::endl;
 
   const std::vector<std::string> *files = result.get_pos_arg_list("files");
@@ -26,7 +26,7 @@ int handle_add_command(const pparser::ParseResult &result) {
 }
 
 // handler for the 'commit' subcommand
-int handle_commit_command(const pparser::ParseResult &result) {
+int handle_commit_command(const parser::ParseResult &result) {
   std::cout << "executing command: " << result.command_path << std::endl;
 
   const std::string *message =
@@ -53,7 +53,7 @@ int handle_commit_command(const pparser::ParseResult &result) {
 // --- main demo ---
 
 int main(int argc, char *argv[]) {
-  pparser::ArgumentParser parser("git_demo",
+  parser::ArgumentParser parser("git_demo",
                                  "a simple git-like command line demo.");
 
   {
@@ -63,26 +63,26 @@ int main(int argc, char *argv[]) {
         "verbose",
         verbose_aliases,
         "enable verbose output",
-        pparser::ArgType_Flag);
+        parser::ArgType_Flag);
   }
 
-  std::shared_ptr<pparser::Command> add_cmd = std::make_shared<pparser::Command>(
+  std::shared_ptr<parser::Command> add_cmd = std::make_shared<parser::Command>(
       "add", "add file contents to the index");
   {
     std::vector<std::string> force_aliases;
     force_aliases.push_back("-f");
     add_cmd
-        ->add_positional_arg("files", "files to add", pparser::ArgType_Multiple,
+        ->add_positional_arg("files", "files to add", parser::ArgType_Multiple,
                            true) // required, multiple values
         .add_keyword_arg("force",
                          force_aliases,
                          "allow adding ignored files",
-                         pparser::ArgType_Flag, false)
+                         parser::ArgType_Flag, false)
         .set_handler(handle_add_command);
   }
 
-  std::shared_ptr<pparser::Command> commit_cmd =
-      std::make_shared<pparser::Command>("commit",
+  std::shared_ptr<parser::Command> commit_cmd =
+      std::make_shared<parser::Command>("commit",
                                          "record changes to the repository");
   {
     std::vector<std::string> message_aliases;
@@ -95,22 +95,22 @@ int main(int argc, char *argv[]) {
         ->add_keyword_arg("message",
                           message_aliases,
                           "commit message",
-                          pparser::ArgType_Single, true) // required, single value
+                          parser::ArgType_Single, true) // required, single value
         .add_keyword_arg("amend",
                          amend_aliases,
                          "amend the previous commit",
-                         pparser::ArgType_Flag, false)
+                         parser::ArgType_Flag, false)
         .add_keyword_arg("verbose",
                          verbose_aliases2,
                          "enable verbose output",
-                         pparser::ArgType_Flag, false)
+                         parser::ArgType_Flag, false)
         .set_handler(handle_commit_command);
   }
 
   parser.get_root_command().add_command(add_cmd);
   parser.get_root_command().add_command(commit_cmd);
 
-  pparser::ParseResult result;
+  parser::ParseResult result;
 
   if (argc < 2) {
     std::cout << "----------------------------------------" << std::endl;
@@ -145,7 +145,7 @@ int main(int argc, char *argv[]) {
     std::cout << "----------------------------------------" << std::endl;
   }
 
-  return (result.status == pparser::ParseResult::ParserStatus_ParseError)
+  return (result.status == parser::ParseResult::ParserStatus_ParseError)
              ? 1
              : 0;
 }

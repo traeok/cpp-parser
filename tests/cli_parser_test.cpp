@@ -2,10 +2,10 @@
 #include <iostream>
 #include <sstream>
 #include "../include/lexer.hpp"
-#include "../include/pparser.hpp"
+#include "../include/parser.hpp"
 
 // Helper function to parse a command line using pparser
-pparser::ParseResult parse_command_line(const std::string &input, pparser::ArgumentParser &parser)
+parser::ParseResult parse_command_line(const std::string &input, parser::ArgumentParser &parser)
 {
     return parser.parse(input);
 }
@@ -14,14 +14,14 @@ pparser::ParseResult parse_command_line(const std::string &input, pparser::Argum
 void testQuotedParenthesesArgument()
 {
     std::cout << "\nTesting quoted argument with parentheses...\n";
-    pparser::ArgumentParser parser("ds", "Test CLI parser");
+    parser::ArgumentParser parser("ds", "Test CLI parser");
 
     // root command: ds
-    pparser::Command &root = parser.get_root_command();
+    parser::Command &root = parser.get_root_command();
     // add positional argument: view
-    root.add_positional_arg("cmd", "subcommand", pparser::ArgType_Single, true);
+    root.add_positional_arg("cmd", "subcommand", parser::ArgType_Single, true);
     // add positional argument: data
-    root.add_positional_arg("data", "data argument", pparser::ArgType_Single, true);
+    root.add_positional_arg("data", "data argument", parser::ArgType_Single, true);
 
     // Print tokens for debugging
     std::string input = "view \"MY.DATA(MEMBER)\"";
@@ -35,9 +35,9 @@ void testQuotedParenthesesArgument()
     }
     std::cout << std::flush;
 
-    pparser::ParseResult result = parse_command_line(input, parser);
+    parser::ParseResult result = parse_command_line(input, parser);
 
-    assert(result.status == pparser::ParseResult::ParserStatus_Success);
+    assert(result.status == parser::ParseResult::ParserStatus_Success);
     assert(result.find_pos_arg_string("cmd") == "view");
     assert(result.find_pos_arg_string("data") == "MY.DATA(MEMBER)");
     std::cout << "cmd: " << result.find_pos_arg_string("cmd") << "\n";

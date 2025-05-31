@@ -22,8 +22,8 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 */
 
-#ifndef PPARSER_HPP
-#define PPARSER_HPP
+#ifndef PARSER_HPP
+#define PARSER_HPP
 
 #include "lexer.hpp"
 #include <algorithm>
@@ -41,25 +41,25 @@ SOFTWARE.
 // Detect whether shared_ptr is in std::tr1 or std
 #if defined(_MSC_VER) && (_MSC_VER < 1700)
 // MSVC before VS2012: shared_ptr is in std::tr1
-#define PPARSER_USE_TR1_SHARED_PTR
+#define PARSER_USE_TR1_SHARED_PTR
 #elif defined(__GNUC__) && !defined(__clang__)
 // GCC: check libstdc++ version
 #if defined(__GLIBCXX__)
 #if __GLIBCXX__ < 20110325
 // Before GCC 4.3, shared_ptr is in std::tr1
-#define PPARSER_USE_TR1_SHARED_PTR
+#define PARSER_USE_TR1_SHARED_PTR
 #endif
 #endif
 #elif defined(__has_include)
 #if __has_include(<tr1/memory>)
 #include <tr1/memory>
-#define PPARSER_USE_TR1_SHARED_PTR
+#define PARSER_USE_TR1_SHARED_PTR
 #endif
 #elif defined(__IBMCPP_TR1__)
-#define PPARSER_USE_TR1_SHARED_PTR
+#define PARSER_USE_TR1_SHARED_PTR
 #endif
 
-namespace pparser {
+namespace parser {
 
 // Levenshtein distance for suggestions
 // Measures the similarity between strings a and b 
@@ -106,7 +106,7 @@ inline std::vector<std::string> make_aliases(const char *a1 = 0,
 }
 
 class Command;
-#if defined(PPARSER_USE_TR1_SHARED_PTR)
+#if defined(PARSER_USE_TR1_SHARED_PTR)
 typedef std::tr1::shared_ptr<Command> command_ptr;
 typedef std::tr1::enable_shared_from_this<Command> enable_shared_command;
 #else
@@ -1261,7 +1261,7 @@ Command::parse(const std::vector<lexer::Token> &tokens,
         for (size_t i = 0; i < m_kw_args.size(); ++i) {
           const ArgumentDef &arg = m_kw_args[i];
           // Check canonical name
-          size_t dist = pparser::levenshtein_distance(flag_name_str, arg.name);
+          size_t dist = parser::levenshtein_distance(flag_name_str, arg.name);
           if (dist < best_dist) {
             best_dist = dist;
             best_match = "--" + arg.name;
@@ -1272,7 +1272,7 @@ Command::parse(const std::vector<lexer::Token> &tokens,
             // Remove leading dashes for comparison
             std::string alias_cmp = alias;
             while (!alias_cmp.empty() && alias_cmp[0] == '-') alias_cmp = alias_cmp.substr(1);
-            dist = pparser::levenshtein_distance(flag_name_str, alias_cmp);
+            dist = parser::levenshtein_distance(flag_name_str, alias_cmp);
             if (dist < best_dist) {
               best_dist = dist;
               best_match = alias;
@@ -1449,7 +1449,7 @@ Command::parse(const std::vector<lexer::Token> &tokens,
         for (std::map<std::string, command_ptr>::const_iterator it2 = m_commands.begin();
              it2 != m_commands.end(); ++it2) {
           // Check subcommand name
-          size_t dist = pparser::levenshtein_distance(potential_subcommand_or_alias, it2->first);
+          size_t dist = parser::levenshtein_distance(potential_subcommand_or_alias, it2->first);
           if (dist < best_dist) {
             best_dist = dist;
             best_match = it2->first;
@@ -1457,7 +1457,7 @@ Command::parse(const std::vector<lexer::Token> &tokens,
           // Check aliases
           const std::vector<std::string> &aliases = it2->second->get_aliases();
           for (size_t j = 0; j < aliases.size(); ++j) {
-            dist = pparser::levenshtein_distance(potential_subcommand_or_alias, aliases[j]);
+            dist = parser::levenshtein_distance(potential_subcommand_or_alias, aliases[j]);
             if (dist < best_dist) {
               best_dist = dist;
               best_match = aliases[j];
@@ -1792,7 +1792,7 @@ inline void generate_bash_completion(std::ostream &os, const std::string &prog_n
   // Helper to recursively emit command tree as bash arrays
   struct BashEmit {
     static void emit_command_tree(const Command &cmd, const std::string &prefix, std::ostream &os) {
-      std::string arr_name = "_pparser_cmds";
+      std::string arr_name = "_parser_cmds";
       if (!prefix.empty()) arr_name += "_" + prefix;
       os << arr_name << "=( ";
       // Subcommands
@@ -1807,7 +1807,7 @@ inline void generate_bash_completion(std::ostream &os, const std::string &prog_n
       }
       os << ")\n";
       // Options
-      std::string opt_arr = "_pparser_opts";
+      std::string opt_arr = "_parser_opts";
       if (!prefix.empty()) opt_arr += "_" + prefix;
       os << opt_arr << "=( ";
       const std::vector<ArgumentDef> &kw = cmd.get_keyword_args();
@@ -1838,10 +1838,10 @@ inline void generate_bash_completion(std::ostream &os, const std::string &prog_n
   BashEmit::emit_command_tree(root_cmd, "", os);
 
   // Emit the completion function
-  os << "_pparser_complete_" << prog_name << "() {\n";
+  os << "_parser_complete_" << prog_name << "() {\n";
   os << "  local cur prev words cword\n";
   os << "  _get_comp_words_by_ref -n : cur prev words cword\n";
-  os << "  local i cmd_path=\"\" arr_name=\"_pparser_cmds\" opt_arr=\"_pparser_opts\"\n";
+  os << "  local i cmd_path=\"\" arr_name=\"_parser_cmds\" opt_arr=\"_parser_opts\"\n";
   os << "  local level=0\n";
   os << "  for ((i=1; i < ${#words[@]}; ++i)); do\n";
   os << "    w=${words[i]}\n";
@@ -1850,8 +1850,8 @@ inline void generate_bash_completion(std::ostream &os, const std::string &prog_n
   os << "    for entry in \"${arr[@]}\"; do\n";
   os << "      if [[ \"$w\" == \"$entry\" ]]; then\n";
   os << "        cmd_path+=\"_\"$w\n";
-  os << "        arr_name=\"_pparser_cmds$cmd_path\"\n";
-  os << "        opt_arr=\"_pparser_opts$cmd_path\"\n";
+  os << "        arr_name=\"_parser_cmds$cmd_path\"\n";
+  os << "        opt_arr=\"_parser_opts$cmd_path\"\n";
   os << "        found=1\n";
   os << "        break\n";
   os << "      fi\n";
@@ -1863,9 +1863,9 @@ inline void generate_bash_completion(std::ostream &os, const std::string &prog_n
   os << "  COMPREPLY=( $(compgen -W \"${opts[*]} ${cmds[*]}\" -- \"$cur\") )\n";
   os << "  return 0\n";
   os << "}\n";
-  os << "complete -F _pparser_complete_" << prog_name << " " << prog_name << "\n";
+  os << "complete -F _parser_complete_" << prog_name << " " << prog_name << "\n";
 }
 
-} // namespace pparser
+} // namespace parser
 
-#endif // PPARSER_HPP
+#endif // PARSER_HPP
