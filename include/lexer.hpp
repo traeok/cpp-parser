@@ -742,7 +742,7 @@ public:
             os << c; // print printable chars directly
           } else {
             // non-printable chars, print unicode replacement character
-            os << "\ufffd";
+            os << u8"\ufffd";
           }
           ptr++;
         }
@@ -750,7 +750,6 @@ public:
       os << "\"";
       break;
     case TokIntLit:
-      // ... (integer printing logic remains the same) ...
       if (m_data.int_lit.base == Hex) {
         std::ios_base::fmtflags original_flags = os.flags();
         os << "0x" << std::hex << m_data.int_lit.value;
